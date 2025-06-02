@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useRef, useEffect, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
@@ -8,30 +6,39 @@ import {
   PerspectiveCamera,
   useTexture,
   Html,
+  useHelper,
 } from "@react-three/drei";
+import { useControls } from "leva";
 import Model3DComponent from "./Model3DComponent";
 import { PedestalModel } from "./PedestalModel";
 import { MetalBench } from "../museum/Bench";
-import { CeilingLamp } from "../museum/CeilingLamp";
+import {
+  CeilingLamp,
+  CeilingLamp2,
+  Plant1,
+  Plant2,
+  Plant3,
+  Plant4,
+} from "../museum/models";
+import { ModelPreloader } from "../shared/ModelPreloader";
+import {
+  MUSEUM_SCENE_CONFIG,
+  PEDESTAL_CONFIG,
+  TEXTURE_PATHS,
+} from "../../config/scene";
 import * as THREE from "three";
 
 // ============================================================================
 // CONFIGURACIÓN Y CONSTANTES
 // ============================================================================
 
-// Configuración de cámara y movimiento del jugador
-const CAMERA_HEIGHT_ABOVE_FLOOR = 1.7; // Altura de la cámara, simulando altura de ojos
-const PLAYER_SPEED = 5.0; // Velocidad de movimiento del jugador
-const PLAYER_RADIUS = 0.5; // Radio aproximado del jugador para colisiones básicas
-
-// Límites de la sala para detección de colisiones
-// Basado en posiciones de paredes: X de -10 a 10, Z de -10 a 10
-const ROOM_BOUNDS = {
-  minX: -10 + PLAYER_RADIUS,
-  maxX: 10 - PLAYER_RADIUS,
-  minZ: -10 + PLAYER_RADIUS,
-  maxZ: 10 - PLAYER_RADIUS,
-};
+const {
+  floorY,
+  cameraHeight: CAMERA_HEIGHT_ABOVE_FLOOR,
+  playerSpeed: PLAYER_SPEED,
+  playerRadius: PLAYER_RADIUS,
+  roomBounds: ROOM_BOUNDS,
+} = MUSEUM_SCENE_CONFIG;
 
 // ============================================================================
 // COMPONENTES DE LA GALERÍA - ESTRUCTURA
@@ -39,14 +46,17 @@ const ROOM_BOUNDS = {
 
 // Componente del suelo de la galería con texturas
 const Floor = () => {
+  const { base, albedo, normal, roughness, metallic, ao, height } =
+    TEXTURE_PATHS.ROCK_WALL;
+
   const [albedoMap, normalMap, roughnessMap, metallicMap, aoMap, heightMap] =
     useTexture([
-      "/textures/rock-wall-mortar-ue/rock-wall-mortar_albedo.png",
-      "/textures/rock-wall-mortar-ue/rock-wall-mortar_normal-dx.png",
-      "/textures/rock-wall-mortar-ue/rock-wall-mortar_roughness.png",
-      "/textures/rock-wall-mortar-ue/rock-wall-mortar_metallic.png",
-      "/textures/rock-wall-mortar-ue/rock-wall-mortar_ao.png",
-      "/textures/rock-wall-mortar-ue/rock-wall-mortar_height.png",
+      `${base}${albedo}`,
+      `${base}${normal}`,
+      `${base}${roughness}`,
+      `${base}${metallic}`,
+      `${base}${ao}`,
+      `${base}${height}`,
     ]);
 
   React.useEffect(() => {
@@ -63,7 +73,11 @@ const Floor = () => {
   }, [albedoMap, normalMap, roughnessMap, metallicMap, aoMap, heightMap]);
 
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.5, 0]} receiveShadow>
+    <mesh
+      rotation={[-Math.PI / 2, 0, 0]}
+      position={[0, floorY, 0]}
+      receiveShadow
+    >
       <planeGeometry args={[50, 50]} />
       <meshStandardMaterial
         map={albedoMap}
@@ -201,21 +215,21 @@ const Ceiling = () => {
 const GalleryLights = () => {
   return (
     <>
-      <ambientLight intensity={0.5} />
+      <ambientLight intensity={0.3} />
       <spotLight
         position={[0, 8, 0]}
         angle={0.4}
         penumbra={0.5}
-        intensity={1.5}
+        intensity={0.8}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
       />
-      <pointLight position={[7, 5, 7]} intensity={0.7} />
-      <pointLight position={[-7, 5, -7]} intensity={0.7} color="#f0e6ff" />
+      <pointLight position={[7, 5, 7]} intensity={0.4} />
+      <pointLight position={[-7, 5, -7]} intensity={0.4} color="#f0e6ff" />
       <directionalLight
         position={[5, 10, 7.5]}
-        intensity={0.8}
+        intensity={0.5}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
@@ -246,28 +260,217 @@ const GalleryBenches = ({ floorY }: { floorY: number }) => {
   );
 };
 
-// Componente para las lámparas del techo
-const CeilingFixtures = () => {
+// Componente para las plantas decorativas
+const GalleryPlants = ({ floorY }: { floorY: number }) => {
   return (
     <>
+      {/* Planta 1 - Al lado del Banco 1 (izquierda) - GRANDE */}
+      <Plant1
+        position={[-3.2, floorY, 2.2]}
+        rotation={[0, Math.PI / 3, 0]}
+        scale={[2.4, 2.4, 2.4]}
+      />
+
+      {/* Planta 2 - Al lado del Banco 1 (izquierda, atrás) - GRANDE */}
+      <Plant2
+        position={[-2.8, floorY, 3.8]}
+        rotation={[0, -Math.PI / 6, 0]}
+        scale={[2.2, 2.2, 2.2]}
+      />
+
+      {/* Planta 3 - Al lado del Banco 2 (derecha) */}
+      <Plant3
+        position={[4.5, floorY, 2]}
+        rotation={[0, -Math.PI / 4, 0]}
+        scale={[1.3, 1.3, 1.3]}
+      />
+
+      {/* Planta 4 - Al lado del Banco 2 (derecha, atrás) */}
+      <Plant4
+        position={[2.5, floorY, 4.5]}
+        rotation={[0, Math.PI / 4, 0]}
+        scale={[1.1, 1.1, 1.1]}
+      />
+    </>
+  );
+};
+
+// Componente para las lámparas del techo
+const CeilingFixtures = () => {
+  // Controles para las luces
+  const {
+    // Controles para lámpara central (Lámpara 2)
+    centralLampX,
+    centralLampY,
+    centralLampZ,
+    centralLightY,
+    centralIntensity,
+    centralAngle,
+    centralScale,
+    // Controles para lámpara principal
+    mainLampX,
+    mainLampY,
+    mainLampZ,
+    mainLightY,
+    mainIntensity,
+    mainAngle,
+    // Controles para lámparas laterales
+    leftLampX,
+    leftLampY,
+    leftLampZ,
+    leftLightY,
+    leftIntensity,
+    leftAngle,
+    rightLampX,
+    rightLampY,
+    rightLampZ,
+    rightLightY,
+    rightIntensity,
+    rightAngle,
+    lightColor,
+  } = useControls("💡 Controles de Lámparas", {
+    // Lámpara Central (Lámpara 2)
+    centralLampX: { value: -6.6, min: -10, max: 10, step: 0.1 },
+    centralLampY: { value: 4.4, min: 4, max: 8, step: 0.1 },
+    centralLampZ: { value: -6.6, min: -10, max: 10, step: 0.1 },
+    centralLightY: { value: 5.1, min: 4, max: 7, step: 0.1 },
+    centralIntensity: { value: 8.3, min: 0, max: 10, step: 0.1 },
+    centralAngle: { value: 1.5, min: 0.1, max: 1.5, step: 0.05 },
+    centralScale: { value: 2.1, min: 0.5, max: 3.0, step: 0.1 },
+    // Lámpara Principal
+    mainLampX: { value: 0, min: -10, max: 10, step: 0.1 },
+    mainLampY: { value: 6.5, min: 4, max: 8, step: 0.1 },
+    mainLampZ: { value: 6.3, min: -10, max: 10, step: 0.1 },
+    mainLightY: { value: 5.8, min: 4, max: 7, step: 0.1 },
+    mainIntensity: { value: 3.5, min: 0, max: 10, step: 0.1 },
+    mainAngle: { value: 0.6, min: 0.1, max: 1.5, step: 0.05 },
+    // Lámparas Laterales
+    leftLampX: { value: -4, min: -10, max: 10, step: 0.1 },
+    leftLampY: { value: 6.5, min: 4, max: 8, step: 0.1 },
+    leftLampZ: { value: -4, min: -10, max: 10, step: 0.1 },
+    leftLightY: { value: 5.9, min: 4, max: 7, step: 0.1 },
+    leftIntensity: { value: 2.5, min: 0, max: 10, step: 0.1 },
+    leftAngle: { value: 0.5, min: 0.1, max: 1.5, step: 0.05 },
+    rightLampX: { value: 4, min: -10, max: 10, step: 0.1 },
+    rightLampY: { value: 6.5, min: 4, max: 8, step: 0.1 },
+    rightLampZ: { value: -4, min: -10, max: 10, step: 0.1 },
+    rightLightY: { value: 5.9, min: 4, max: 7, step: 0.1 },
+    rightIntensity: { value: 2.5, min: 0, max: 10, step: 0.1 },
+    rightAngle: { value: 0.5, min: 0.1, max: 1.5, step: 0.05 },
+    // Color general
+    lightColor: "#fff8e1",
+  });
+
+  return (
+    <>
+      {/* Lámpara central principal - Lámpara 2 (controlable) */}
+      <CeilingLamp2
+        position={[centralLampX, centralLampY, centralLampZ]}
+        rotation={[0, 0, 0]}
+        scale={[centralScale, centralScale, centralScale]}
+      />
+      {/* Luz de la lámpara central */}
+      <spotLight
+        position={[centralLampX, centralLightY, centralLampZ]}
+        target-position={[centralLampX, -1.5, centralLampZ]}
+        angle={centralAngle}
+        penumbra={0.2}
+        intensity={centralIntensity}
+        color={lightColor}
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-camera-near={0.1}
+        shadow-camera-far={15}
+      />
+      {/* Luz ambiente adicional de la lámpara central */}
+      <pointLight
+        position={[centralLampX, centralLampY - 0.5, centralLampZ]}
+        intensity={centralIntensity * 0.4}
+        color={lightColor}
+        distance={12}
+        decay={2}
+      />
+
       {/* Lámpara principal sobre el modelo central */}
       <CeilingLamp
-        position={[0, 6.5, 0]}
+        position={[mainLampX, mainLampY, mainLampZ]}
         rotation={[0, 0, 0]}
         scale={[1.2, 1.2, 1.2]}
+      />
+      {/* Luz de la lámpara principal */}
+      <spotLight
+        position={[mainLampX, mainLightY, mainLampZ]}
+        target-position={[mainLampX, -1.5, mainLampZ]}
+        angle={mainAngle}
+        penumbra={0.3}
+        intensity={mainIntensity}
+        color={lightColor}
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-camera-near={0.1}
+        shadow-camera-far={15}
       />
 
       {/* Lámparas adicionales para iluminación general */}
       <CeilingLamp
-        position={[-4, 6.5, -4]}
+        position={[leftLampX, leftLampY, leftLampZ]}
         rotation={[0, Math.PI / 4, 0]}
         scale={[0.9, 0.9, 0.9]}
       />
+      {/* Luz de la lámpara izquierda trasera */}
+      <spotLight
+        position={[leftLampX, leftLightY, leftLampZ]}
+        target-position={[leftLampX, -1.5, leftLampZ]}
+        angle={leftAngle}
+        penumbra={0.4}
+        intensity={leftIntensity}
+        color={lightColor}
+        castShadow
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+      />
 
       <CeilingLamp
-        position={[4, 6.5, -4]}
+        position={[rightLampX, rightLampY, rightLampZ]}
         rotation={[0, -Math.PI / 4, 0]}
         scale={[0.9, 0.9, 0.9]}
+      />
+      {/* Luz de la lámpara derecha trasera */}
+      <spotLight
+        position={[rightLampX, rightLightY, rightLampZ]}
+        target-position={[rightLampX, -1.5, rightLampZ]}
+        angle={rightAngle}
+        penumbra={0.4}
+        intensity={rightIntensity}
+        color={lightColor}
+        castShadow
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+      />
+
+      {/* Luces adicionales para efecto de brillo suave alrededor de las lámparas */}
+      <pointLight
+        position={[mainLampX, mainLampY - 0.5, mainLampZ]}
+        intensity={mainIntensity * 0.3}
+        color={lightColor}
+        distance={8}
+        decay={2}
+      />
+      <pointLight
+        position={[leftLampX, leftLampY - 0.5, leftLampZ]}
+        intensity={leftIntensity * 0.3}
+        color={lightColor}
+        distance={6}
+        decay={2}
+      />
+      <pointLight
+        position={[rightLampX, rightLampY - 0.5, rightLampZ]}
+        intensity={rightIntensity * 0.3}
+        color={lightColor}
+        distance={6}
+        decay={2}
       />
     </>
   );
@@ -378,11 +581,8 @@ export default function Model3DViewerScene({
   modelUrl,
   onBack,
 }: Model3DViewerSceneProps) {
-  const floorY = -1.5;
-
-  // Configuración del pedestal
-  const pedestalScale = 0.6;
-  const pedestalBaseDesiredY = floorY + 0.05;
+  // Configuración del pedestal usando configuración centralizada
+  const pedestalBaseDesiredY = floorY + PEDESTAL_CONFIG.baseOffset;
   const pedestalPosition: [number, number, number] = [
     0,
     pedestalBaseDesiredY,
@@ -390,7 +590,8 @@ export default function Model3DViewerScene({
   ];
 
   // Configuración del modelo principal
-  const estimatedPedestalHeight = 1.3172 * pedestalScale;
+  const estimatedPedestalHeight =
+    PEDESTAL_CONFIG.estimatedHeight * PEDESTAL_CONFIG.scale;
   const anceuModelBaseY = pedestalPosition[1] + estimatedPedestalHeight;
   const anceuModelGroupPosition: [number, number, number] = [
     0,
@@ -439,6 +640,9 @@ export default function Model3DViewerScene({
       }}
       onClick={handleCanvasClick}
     >
+      {/* Precargar todos los modelos */}
+      <ModelPreloader />
+
       <Canvas shadows dpr={[1, 1.5]}>
         <PerspectiveCamera makeDefault fov={60} position={[0, 0, 0]} />
         <PlayerController floorY={floorY} />
@@ -452,10 +656,14 @@ export default function Model3DViewerScene({
         <Ceiling />
 
         {/* Modelo principal con pedestal */}
-        <PedestalModel position={pedestalPosition} modelScale={pedestalScale} />
+        <PedestalModel
+          position={pedestalPosition}
+          modelScale={PEDESTAL_CONFIG.scale}
+        />
 
         {/* Mobiliario */}
         <GalleryBenches floorY={floorY} />
+        <GalleryPlants floorY={floorY} />
         <CeilingFixtures />
 
         <React.Suspense fallback={null}>
@@ -464,23 +672,6 @@ export default function Model3DViewerScene({
           </group>
           <Environment preset="sunset" />
         </React.Suspense>
-
-        {/* Mensaje de instrucciones */}
-        {!isPointerLockActive && (
-          <Html center>
-            <div
-              style={{
-                color: "white",
-                background: "rgba(0,0,0,0.7)",
-                padding: "10px",
-                borderRadius: "5px",
-              }}
-            >
-              Haz clic en la escena para activar los controles. Presiona ESC
-              para liberar.
-            </div>
-          </Html>
-        )}
       </Canvas>
 
       {/* Botón de retorno */}
@@ -501,6 +692,41 @@ export default function Model3DViewerScene({
       >
         Volver a la Galería
       </button>
+
+      {/* Panel de información - posicionado debajo del botón */}
+      {!isPointerLockActive && (
+        <div
+          style={{
+            position: "absolute",
+            top: "80px",
+            left: "20px",
+            color: "white",
+            background: "rgba(0,0,0,0.7)",
+            padding: "15px",
+            borderRadius: "8px",
+            maxWidth: "500px",
+            width: "auto",
+            fontSize: "14px",
+            lineHeight: "1.4",
+            zIndex: 1000,
+          }}
+        >
+          <div style={{ marginBottom: "12px" }}>
+            <strong>🎮 Controles de Navegación:</strong>
+          </div>
+          <div style={{ marginBottom: "12px" }}>
+            Haz clic en la escena para activar los controles. Usa WASD para
+            moverte y el mouse para mirar. Presiona ESC para liberar.
+          </div>
+          <div style={{ marginBottom: "12px" }}>
+            <strong>💡 Panel de Luces:</strong>
+          </div>
+          <div>
+            Usa el panel de la derecha para ajustar posición, intensidad y
+            ángulo de las lámparas en tiempo real.
+          </div>
+        </div>
+      )}
     </div>
   );
 }
