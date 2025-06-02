@@ -7,12 +7,14 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { Html } from "@react-three/drei";
 
-// Función para convertir grados a radianes
+// Helper to convert degrees to radians for rotations
 const degreesToRadians = (degrees: number) => degrees * (Math.PI / 180);
 
-// --- VALORES POR DEFECTO PERMANENTES ---
-const DEFAULT_POSITION = { x: 0, y: 0, z: 0 }; // Ajustado, el pedestal manejará la altura.
-const DEFAULT_ROTATION_DEGREES = { x: 0, y: 0, z: 0 }; // Rotación inicial neutra
+// --- Default Transformation Values ---
+// These are base values. The model is expected to be placed on a pedestal,
+// so its Y position is relative to that pedestal or its group in the parent scene.
+const DEFAULT_POSITION = { x: 0, y: 0, z: 0 };
+const DEFAULT_ROTATION_DEGREES = { x: 0, y: 0, z: 0 }; // Initial neutral rotation
 const DEFAULT_ROTATION_RADIANS = {
   x: degreesToRadians(DEFAULT_ROTATION_DEGREES.x),
   y: degreesToRadians(DEFAULT_ROTATION_DEGREES.y),
@@ -20,23 +22,25 @@ const DEFAULT_ROTATION_RADIANS = {
 };
 
 interface Model3DProps {
-  url: string;
+  url: string; // URL of the GLB/GLTF model to load
 }
 
 export default function Model3DComponent({ url }: Model3DProps) {
-  const group = useRef<THREE.Group>(null);
+  const group = useRef<THREE.Group>(null); // Ref for the main group containing the model
   const [model, setModel] = useState<THREE.Object3D | null>(null);
   const [loading, setLoading] = useState(true);
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState(0); // Loading progress (0-100)
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log("Intentando cargar modelo desde:", url);
+    // console.log(`Model3DComponent: Attempting to load model from: ${url}`); // Dev log
 
     const loader = new GLTFLoader();
+    // DRACOLoader is kept in case some models use Draco compression.
+    // It doesn't harm if not used by a specific model.
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath(
-      "https://www.gstatic.com/draco/versioned/decoders/1.5.6/"
+      "https://www.gstatic.com/draco/versioned/decoders/1.5.6/" // Official Draco decoder path
     );
     dracoLoader.setDecoderConfig({ type: "js" });
     loader.setDRACOLoader(dracoLoader);
@@ -44,15 +48,19 @@ export default function Model3DComponent({ url }: Model3DProps) {
     loader.load(
       url,
       (gltf) => {
-        console.log("Modelo GLTF cargado:", url);
+        // console.log(`Model3DComponent: GLTF model loaded: ${url}`); // Dev log
         const loadedModel = gltf.scene;
 
+        // 1. Center the model's geometry at its local origin.
+        // This makes rotations and scaling more predictable.
         const box = new THREE.Box3().setFromObject(loadedModel);
         const center = box.getCenter(new THREE.Vector3());
         loadedModel.children.forEach((child) => {
-          child.position.sub(center);
+          child.position.sub(center); // Offset children to center the parent
         });
 
+        // 2. Apply base position and rotation.
+        // These are defaults; specific adjustments for the Anceu model are applied next.
         loadedModel.position.set(
           DEFAULT_POSITION.x,
           DEFAULT_POSITION.y,
@@ -64,64 +72,83 @@ export default function Model3DComponent({ url }: Model3DProps) {
           DEFAULT_ROTATION_RADIANS.z
         );
 
-        const tempModelForMesurement = loadedModel.clone();
-        tempModelForMesurement.scale.set(1, 1, 1);
+        // 3. Apply specific transformations for the Anceu model (these were fine-tuned).
+        loadedModel.rotation.x += Math.PI / 2; // 90 degrees in X
+        loadedModel.rotation.y += Math.PI; // 180 degrees in Y
+        loadedModel.rotation.z += Math.PI / 0.65; // Approx 276.9 degrees in Z
+        loadedModel.position.y += 1.5; // Fine-tuned Y offset
+
+        // 4. Calculate and apply desired scale.
+        // Measure bounding box *after* rotations to get correct dimensions in final orientation.
+        const tempModelForMeasurement = loadedModel.clone();
+        tempModelForMeasurement.scale.set(1, 1, 1); // Measure with intrinsic scale
         const boxForScaling = new THREE.Box3().setFromObject(
-          tempModelForMesurement
+          tempModelForMeasurement
         );
         const size = boxForScaling.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
-        // Escalar para que la dimensión más grande sea, por ejemplo, de 2 unidades.
-        // La escena de la galería que me pasaste tiene un pedestal de 1 unidad de alto y 2x2 de base.
-        // Si el modelo debe ir encima, una escala de 2 unidades podría ser mucho. Ajustemos a 1.5 para que quepa bien.
-        const desiredSize = 2.5;
-        const calculatedScale = maxDim > 0 ? desiredSize / maxDim : 1;
-        loadedModel.scale.setScalar(calculatedScale);
-        console.log(
-          "Modelo procesado:",
-          { url },
-          {
-            pos: loadedModel.position,
-            rot: loadedModel.rotation,
-            finalScale: calculatedScale,
-            centeredOffset: center,
-          }
-        );
 
+        const desiredBaseDisplaySize = 1.5; // Target size for the largest dimension
+        let calculatedScale = maxDim > 0 ? desiredBaseDisplaySize / maxDim : 1;
+        calculatedScale *= 4; // Further scale up as requested
+
+        loadedModel.scale.setScalar(calculatedScale);
+
+        // console.log( // Dev log for checking final transforms
+        //   "Model3DComponent: Processed model:",
+        //   { url },
+        //   {
+        //     pos: loadedModel.position.toArray(),
+        //     rot: [
+        //       loadedModel.rotation.x,
+        //       loadedModel.rotation.y,
+        //       loadedModel.rotation.z,
+        //     ],
+        //     scale: loadedModel.scale.x,
+        //     centeredOffset: center.toArray(),
+        //   }
+        // );
+
+        // Ensure all meshes in the model cast and receive shadows.
         loadedModel.traverse((child) => {
           if (child instanceof THREE.Mesh) {
             child.castShadow = true;
             child.receiveShadow = true;
-            if (child.material) child.material.needsUpdate = true;
+            // if (child.material) child.material.needsUpdate = true; // May not be necessary, but can help if materials look off
           }
         });
+
         setModel(loadedModel);
         setLoading(false);
         setError(null);
       },
       (xhr) => {
+        // Progress callback
         if (xhr.total > 0) {
           const p = (xhr.loaded / xhr.total) * 100;
           setProgress(p);
         }
       },
       (err: any) => {
-        console.error("Error GLTF:", { url }, err);
-        setError(`Error al cargar ${url}: ${err.message || "Desconocido"}`);
+        // Error callback
+        console.error(`Model3DComponent: GLTF loading error for ${url}:`, err);
+        setError(`Failed to load ${url}: ${err.message || "Unknown error"}`);
         setLoading(false);
       }
     );
+
     return () => {
+      // Clean up DRACOLoader instance when component unmounts or URL changes
       dracoLoader.dispose();
     };
-  }, [url]);
+  }, [url]); // Effect runs when the model URL changes
 
-  useFrame(() => {
-    // Podrías añadir rotación automática aquí si lo deseas
-    // if (group.current && model) {
-    //   group.current.rotation.y += 0.005;
-    // }
-  });
+  // useFrame(() => {
+  //   // Example: Auto-rotate the model. Uncomment to enable.
+  //   // if (group.current && model) {
+  //   //   group.current.rotation.y += 0.005;
+  //   // }
+  // });
 
   if (error) {
     return (
@@ -134,7 +161,7 @@ export default function Model3DComponent({ url }: Model3DProps) {
             borderRadius: "5px",
           }}
         >
-          <p>Error al cargar el modelo:</p>
+          <p>Error loading 3D model:</p>
           <p>{error}</p>
         </div>
       </Html>
@@ -152,7 +179,7 @@ export default function Model3DComponent({ url }: Model3DProps) {
             borderRadius: "5px",
           }}
         >
-          <p>Cargando modelo 3D...</p>
+          <p>Loading 3D Model...</p>
           <p>{Math.round(progress)}%</p>
           <div
             style={{
@@ -174,11 +201,8 @@ export default function Model3DComponent({ url }: Model3DProps) {
     );
   }
 
-  return (
-    <group ref={group} position={[0, 0.5, 0]}>
-      {" "}
-      {/* Posición base del modelo, pedestal estará en y=-1 */}
-      {model && <primitive object={model} />}
-    </group>
-  );
+  // The <group> acts as a container. The model's own position/rotation/scale
+  // have already been set. If this Model3DComponent instance is positioned
+  // in its parent scene, that transform will apply to this outer group.
+  return <group ref={group}>{model && <primitive object={model} />}</group>;
 }
