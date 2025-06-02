@@ -36,6 +36,7 @@ export const drawingImages: ImageMetadata[] = [
     link: "",
     description:
       "Una artista presenta un gran tapiz hecho con elementos naturales como ramas, hojas y flores, demostrando una conexión profunda con el arte y la naturaleza.",
+    modelViewerPath: "/models/Anceu-Coliving-30-5-2025-textured_model.glb",
   },
   {
     url: "./LogoRHackers.svg",

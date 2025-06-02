@@ -10,14 +10,19 @@ interface FrameProps {
   image: ImageMetadata;
   index: number;
   onFrameClick?: (index: number) => void;
+  onShowModelViewer: (modelUrl: string) => void;
 }
 
 useFont.preload("/fonts/Inter_28pt-SemiBold.ttf");
 
 const Frame = forwardRef<THREE.Mesh, FrameProps>(
-  ({ position, rotation, image, index, onFrameClick }, ref) => {
+  (
+    { position, rotation, image, index, onFrameClick, onShowModelViewer },
+    ref
+  ) => {
     const [hovered, setHovered] = useState(false);
     const [linkHovered, setLinkHovered] = useState(false);
+    const [modelLinkHovered, setModelLinkHovered] = useState(false);
 
     const [error, setError] = useState(false);
     const internalRef = useRef<THREE.Mesh>(null);
@@ -27,22 +32,32 @@ const Frame = forwardRef<THREE.Mesh, FrameProps>(
 
     useCursor(hovered);
     useCursor(linkHovered);
+    useCursor(modelLinkHovered);
 
     const texture = useTexture(image.url);
 
     React.useEffect(() => {
       const handleError = () => {
-        console.warn(`Failed to load image ${index + 1}`);
+        console.warn(`Failed to load image ${index + 1}: ${image.url}`);
         setError(true);
       };
 
-      if (texture && texture.source) {
+      if (
+        texture &&
+        texture.source &&
+        texture.source.data instanceof HTMLImageElement
+      ) {
         texture.source.data.addEventListener("error", handleError);
         return () => {
-          texture.source.data.removeEventListener("error", handleError);
+          if (
+            texture.source &&
+            texture.source.data instanceof HTMLImageElement
+          ) {
+            texture.source.data.removeEventListener("error", handleError);
+          }
         };
       }
-    }, [texture, index]);
+    }, [texture, index, image.url]);
 
     if (texture) {
       texture.minFilter = THREE.LinearFilter;
@@ -70,6 +85,9 @@ const Frame = forwardRef<THREE.Mesh, FrameProps>(
       }
     };
 
+    const linkBaseY = -height / 2 - 0.2;
+    const linkSpacing = 0.15;
+
     return (
       <group position={position} rotation={rotation}>
         <mesh
@@ -95,7 +113,7 @@ const Frame = forwardRef<THREE.Mesh, FrameProps>(
                   anchorY="middle"
                   font="Times New Roman"
                 >
-                  Image not available
+                  Imagen no disponible
                 </Text>
               </meshBasicMaterial>
             ) : (
@@ -104,41 +122,95 @@ const Frame = forwardRef<THREE.Mesh, FrameProps>(
           </mesh>
         </mesh>
 
-        <mesh position={[width / 2 + 0.2, height / 2 - 0.2, -0.05]}>
-          <Text
-            position={[0, 0, 0.015]}
-            fontSize={0.06}
-            color="#eee"
-            anchorX="left"
-            anchorY="middle"
-            maxWidth={0.7}
-            textAlign="left"
-            lineHeight={1.3}
-            font="/fonts/Inter_28pt-SemiBold.ttf"
-          >
-            {`${image.title}\n${image.artist}\n${image.date}`}
-          </Text>
-        </mesh>
+        <Text
+          position={[0, height / 2 + 0.1, 0.06]}
+          fontSize={0.07}
+          color="#fff"
+          anchorX="center"
+          anchorY="bottom"
+          maxWidth={width}
+          textAlign="center"
+          font="/fonts/Inter_28pt-SemiBold.ttf"
+        >
+          {`${image.title}\n`}
+          <meshStandardMaterial emissive="#ffffff" emissiveIntensity={0.5} />
+        </Text>
+        <Text
+          position={[0, -height / 2 - 0.05, 0.06]}
+          fontSize={0.05}
+          color="#ccc"
+          anchorX="center"
+          anchorY="top"
+          maxWidth={width}
+          textAlign="center"
+          lineHeight={1.2}
+          font="/fonts/Inter_28pt-SemiBold.ttf"
+        >
+          {`${image.artist}\n${image.date}`}
+        </Text>
 
-        {isZoomed && (
+        {isZoomed && image.link && (
           <mesh
-            position={[0, -height / 2 - 0.2, -0.04]}
-            onClick={() => {
+            position={[0, linkBaseY, -0.04]}
+            onClick={(e) => {
+              e.stopPropagation();
               window.open(image.link, "_blank", "noopener, noreferrer");
             }}
-            onPointerOver={() => setLinkHovered(true)}
-            onPointerOut={() => setLinkHovered(false)}
+            onPointerOver={(e) => {
+              e.stopPropagation();
+              setLinkHovered(true);
+            }}
+            onPointerOut={(e) => {
+              e.stopPropagation();
+              setLinkHovered(false);
+            }}
           >
             <group position={[0, 0, 0.06]}>
               <Text
-                fontSize={0.08}
+                fontSize={0.06}
                 color={linkHovered ? "#fff" : "#aaa"}
                 font="/fonts/Inter_28pt-SemiBold.ttf"
+                anchorX="center"
+                anchorY="middle"
               >
-                Open in instagram →
+                Abrir en Instagram →
               </Text>
             </group>
-            <boxGeometry args={[1, 0.2, 0.1]} />
+            <boxGeometry args={[0.8, 0.1, 0.05]} />
+            <meshBasicMaterial transparent opacity={0} />
+          </mesh>
+        )}
+
+        {isZoomed && image.modelViewerPath && (
+          <mesh
+            position={[0, linkBaseY - (image.link ? linkSpacing : 0), -0.04]}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (image.modelViewerPath) {
+                onShowModelViewer(image.modelViewerPath);
+              }
+            }}
+            onPointerOver={(e) => {
+              e.stopPropagation();
+              setModelLinkHovered(true);
+            }}
+            onPointerOut={(e) => {
+              e.stopPropagation();
+              setModelLinkHovered(false);
+            }}
+          >
+            <group position={[0, 0, 0.06]}>
+              <Text
+                fontSize={0.06}
+                color={modelLinkHovered ? "#61dafb" : "#aaa"}
+                font="/fonts/Inter_28pt-SemiBold.ttf"
+                anchorX="center"
+                anchorY="middle"
+              >
+                Ver Modelo 3D 🖼️
+              </Text>
+            </group>
+            <boxGeometry args={[0.8, 0.1, 0.05]} />
             <meshBasicMaterial transparent opacity={0} />
           </mesh>
         )}

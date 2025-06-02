@@ -13,6 +13,7 @@ import { useAnimation } from "../contexts/AnimationContext";
 
 interface SceneProps {
   images: ImageMetadata[];
+  onShowModelViewer: (modelUrl: string) => void;
 }
 
 const EmptyFallback = ({ onLoaded }: { onLoaded: () => void }) => {
@@ -25,7 +26,7 @@ const EmptyFallback = ({ onLoaded }: { onLoaded: () => void }) => {
   return null;
 };
 
-const Scene: React.FC<SceneProps> = ({ images }) => {
+const Scene: React.FC<SceneProps> = ({ images, onShowModelViewer }) => {
   const { sceneOpacity, sceneBlur, handleAssetsLoaded } = useAnimation();
 
   return (
@@ -51,7 +52,7 @@ const Scene: React.FC<SceneProps> = ({ images }) => {
         {/* <Perf minimal={true} /> */}
         <color attach="background" args={["#000000"]} />
         <Suspense fallback={<EmptyFallback onLoaded={handleAssetsLoaded} />}>
-          <Museum images={images} />
+          <Museum images={images} onShowModelViewer={onShowModelViewer} />
           <Environment preset="city" />
         </Suspense>
       </Canvas>
