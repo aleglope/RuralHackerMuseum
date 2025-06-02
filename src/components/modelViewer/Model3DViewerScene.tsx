@@ -10,16 +10,22 @@ import {
   Html,
 } from "@react-three/drei";
 import Model3DComponent from "./Model3DComponent";
-import { PedestalModel } from "./PedestalModel"; // Main artwork pedestal
+import { PedestalModel } from "./PedestalModel";
+import { MetalBench } from "../museum/Bench";
+import { CeilingLamp } from "../museum/CeilingLamp";
 import * as THREE from "three";
 
-// Camera and player movement settings
-const CAMERA_HEIGHT_ABOVE_FLOOR = 1.7; // Camera Y position, simulating eye level
-const PLAYER_SPEED = 5.0; // Player movement speed
-const PLAYER_RADIUS = 0.5; // Player's approximate radius for basic collision
+// ============================================================================
+// CONFIGURACIÓN Y CONSTANTES
+// ============================================================================
 
-// Room boundaries for collision detection
-// Based on wall positions: X from -10 to 10, Z from -10 to 10.
+// Configuración de cámara y movimiento del jugador
+const CAMERA_HEIGHT_ABOVE_FLOOR = 1.7; // Altura de la cámara, simulando altura de ojos
+const PLAYER_SPEED = 5.0; // Velocidad de movimiento del jugador
+const PLAYER_RADIUS = 0.5; // Radio aproximado del jugador para colisiones básicas
+
+// Límites de la sala para detección de colisiones
+// Basado en posiciones de paredes: X de -10 a 10, Z de -10 a 10
 const ROOM_BOUNDS = {
   minX: -10 + PLAYER_RADIUS,
   maxX: 10 - PLAYER_RADIUS,
@@ -27,7 +33,11 @@ const ROOM_BOUNDS = {
   maxZ: 10 - PLAYER_RADIUS,
 };
 
-// Gallery floor component with textures
+// ============================================================================
+// COMPONENTES DE LA GALERÍA - ESTRUCTURA
+// ============================================================================
+
+// Componente del suelo de la galería con texturas
 const Floor = () => {
   const [albedoMap, normalMap, roughnessMap, metallicMap, aoMap, heightMap] =
     useTexture([
@@ -69,7 +79,7 @@ const Floor = () => {
   );
 };
 
-// Gallery walls component with textures
+// Componente de las paredes de la galería
 const GalleryWalls = () => {
   const [albedoMap, normalMap, roughnessMap, metallicMap, aoMap, heightMap] =
     useTexture([
@@ -109,13 +119,13 @@ const GalleryWalls = () => {
 
   return (
     <group>
-      {/* Back wall */}
+      {/* Pared trasera */}
       <mesh position={[0, 2.5, -10]} receiveShadow castShadow>
         <planeGeometry args={[20, 10]} />
         {wallMaterial}
       </mesh>
 
-      {/* Left wall */}
+      {/* Pared izquierda */}
       <mesh
         position={[-10, 2.5, 0]}
         rotation={[0, Math.PI / 2, 0]}
@@ -126,7 +136,7 @@ const GalleryWalls = () => {
         {wallMaterial}
       </mesh>
 
-      {/* Right wall */}
+      {/* Pared derecha */}
       <mesh
         position={[10, 2.5, 0]}
         rotation={[0, -Math.PI / 2, 0]}
@@ -137,10 +147,10 @@ const GalleryWalls = () => {
         {wallMaterial}
       </mesh>
 
-      {/* Front wall */}
+      {/* Pared frontal */}
       <mesh
         position={[0, 2.5, 10]}
-        rotation={[0, Math.PI, 0]} // Rotate to face inward (normal pointing to -Z)
+        rotation={[0, Math.PI, 0]}
         receiveShadow
         castShadow
       >
@@ -151,15 +161,14 @@ const GalleryWalls = () => {
   );
 };
 
-// Gallery ceiling component with bamboo textures
+// Componente del techo con texturas de bambú
 const Ceiling = () => {
   const texturePathBase =
     "/textures/rock-wall-mortar-ue/bamboo-wood-semigloss-bl/";
   const [albedoMap, normalMap, roughnessMap, metallicMap, aoMap] = useTexture([
     `${texturePathBase}bamboo-wood-semigloss-albedo.png`,
     `${texturePathBase}bamboo-wood-semigloss-normal.png`,
-    `${texturePathBase}bamboo-wood-semigloss-roughness.png`,
-    `${texturePathBase}bamboo-wood-semigloss-metal.png`,
+
     `${texturePathBase}bamboo-wood-semigloss-ao.png`,
   ]);
 
@@ -168,32 +177,27 @@ const Ceiling = () => {
       if (map) {
         map.wrapS = THREE.RepeatWrapping;
         map.wrapT = THREE.RepeatWrapping;
-        map.repeat.set(8, 8); // Texture repeat for ceiling
+        map.repeat.set(8, 8);
         map.needsUpdate = true;
       }
     });
   }, [albedoMap, normalMap, roughnessMap, metallicMap, aoMap]);
 
   return (
-    <mesh
-      rotation={[Math.PI / 2, 0, 0]} // Rotate to face downwards
-      position={[0, 7.5, 0]} // Position at wall top height
-      receiveShadow // Ceiling can receive shadows
-    >
+    <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 7.5, 0]} receiveShadow>
       <planeGeometry args={[50, 50]} />
       <meshStandardMaterial
         map={albedoMap}
-        normalMap={normalMap}
-        roughnessMap={roughnessMap}
-        metalness={0.05} // Low metalness for wood
+        roughness={0.9}
+        metalness={0.0}
         aoMap={aoMap}
-        normalScale={new THREE.Vector2(0.8, 0.8)} // Adjust normal map intensity if needed
-        side={THREE.DoubleSide} // Render both sides just in case
+        side={THREE.DoubleSide}
       />
     </mesh>
   );
 };
 
+// Sistema de iluminación de la galería
 const GalleryLights = () => {
   return (
     <>
@@ -225,7 +229,55 @@ const GalleryLights = () => {
   );
 };
 
-// Hook for WASD keyboard input
+// ============================================================================
+// COMPONENTES DE MOBILIARIO
+// ============================================================================
+
+// Componente para los bancos
+const GalleryBenches = ({ floorY }: { floorY: number }) => {
+  return (
+    <>
+      {/* Banco 1 - A la izquierda del modelo central */}
+      <MetalBench position={[-3, floorY, 3]} rotation={[0, Math.PI / 4, 0]} />
+
+      {/* Banco 2 - A la derecha del modelo central */}
+      <MetalBench position={[3, floorY, 3]} rotation={[0, -Math.PI / 4, 0]} />
+    </>
+  );
+};
+
+// Componente para las lámparas del techo
+const CeilingFixtures = () => {
+  return (
+    <>
+      {/* Lámpara principal sobre el modelo central */}
+      <CeilingLamp
+        position={[0, 6.5, 0]}
+        rotation={[0, 0, 0]}
+        scale={[1.2, 1.2, 1.2]}
+      />
+
+      {/* Lámparas adicionales para iluminación general */}
+      <CeilingLamp
+        position={[-4, 6.5, -4]}
+        rotation={[0, Math.PI / 4, 0]}
+        scale={[0.9, 0.9, 0.9]}
+      />
+
+      <CeilingLamp
+        position={[4, 6.5, -4]}
+        rotation={[0, -Math.PI / 4, 0]}
+        scale={[0.9, 0.9, 0.9]}
+      />
+    </>
+  );
+};
+
+// ============================================================================
+// CONTROLADOR DEL JUGADOR
+// ============================================================================
+
+// Hook para el control del teclado WASD
 const usePlayerControls = () => {
   const keys = useRef({
     KeyW: false,
@@ -255,20 +307,18 @@ const usePlayerControls = () => {
   return keys;
 };
 
-// Handles camera and player movement logic
+// Controlador de movimiento del jugador
 const PlayerController = ({ floorY }: { floorY: number }) => {
   const { camera, gl } = useThree();
-  const controlsRef = useRef<any>(); // Ref for PointerLockControls instance
+  const controlsRef = useRef<any>();
   const playerVelocity = useRef(new THREE.Vector3());
-  // const playerOnFloor = useRef(true); // Not currently used, but could be for jumping later
   const keys = usePlayerControls();
 
-  // Set initial camera position and orientation
+  // Establecer posición inicial de la cámara
   useEffect(() => {
-    camera.position.set(0, floorY + CAMERA_HEIGHT_ABOVE_FLOOR, 5); // Start at Z=5, looking towards origin
-    camera.lookAt(0, floorY + CAMERA_HEIGHT_ABOVE_FLOOR, 0); // Look forward
+    camera.position.set(0, floorY + CAMERA_HEIGHT_ABOVE_FLOOR, 5);
+    camera.lookAt(0, floorY + CAMERA_HEIGHT_ABOVE_FLOOR, 0);
     if (controlsRef.current) {
-      // This is a trick to apply the initial lookAt to PointerLockControls
       controlsRef.current.lock();
       setTimeout(() => controlsRef.current.unlock(), 0);
     }
@@ -276,38 +326,27 @@ const PlayerController = ({ floorY }: { floorY: number }) => {
 
   useFrame((state, delta) => {
     if (!controlsRef.current || !controlsRef.current.isLocked) {
-      playerVelocity.current.set(0, 0, 0); // Stop movement if pointer isn't locked
+      playerVelocity.current.set(0, 0, 0);
       return;
     }
 
     const speedDelta = delta * PLAYER_SPEED;
     const moveDirection = new THREE.Vector3();
 
-    if (keys.current.KeyW) {
-      moveDirection.z = -1;
-    }
-    if (keys.current.KeyS) {
-      moveDirection.z = 1;
-    }
-    if (keys.current.KeyA) {
-      moveDirection.x = -1;
-    }
-    if (keys.current.KeyD) {
-      moveDirection.x = 1;
-    }
+    if (keys.current.KeyW) moveDirection.z = -1;
+    if (keys.current.KeyS) moveDirection.z = 1;
+    if (keys.current.KeyA) moveDirection.x = -1;
+    if (keys.current.KeyD) moveDirection.x = 1;
 
     if (moveDirection.lengthSq() > 0) {
-      moveDirection.normalize(); // Ensure consistent speed in all directions
-
-      // Apply camera's quaternion to the movement vector to move relative to view
+      moveDirection.normalize();
       moveDirection.applyQuaternion(camera.quaternion);
 
       const newPosition = camera.position.clone();
       newPosition.addScaledVector(moveDirection, speedDelta);
 
-      // Keep camera at fixed height and apply XZ boundary collisions
+      // Mantener altura fija y aplicar límites de colisión
       newPosition.y = floorY + CAMERA_HEIGHT_ABOVE_FLOOR;
-
       newPosition.x = Math.max(
         ROOM_BOUNDS.minX,
         Math.min(ROOM_BOUNDS.maxX, newPosition.x)
@@ -326,6 +365,10 @@ const PlayerController = ({ floorY }: { floorY: number }) => {
   );
 };
 
+// ============================================================================
+// COMPONENTE PRINCIPAL
+// ============================================================================
+
 interface Model3DViewerSceneProps {
   modelUrl: string;
   onBack: () => void;
@@ -335,26 +378,19 @@ export default function Model3DViewerScene({
   modelUrl,
   onBack,
 }: Model3DViewerSceneProps) {
-  const floorY = -1.5; // Y position of the floor plane
+  const floorY = -1.5;
 
-  // --- Pedestal Configuration ---
-  const pedestalScale = 0.6; // Scale factor for the pedestal model
-  // Assuming pedestal GLTF origin is at its base after its internal scaling.
-  // Position the pedestal base slightly above the floor to prevent z-fighting.
-  const pedestalBaseDesiredY = floorY + 0.05; // Elevate slightly from the floor
+  // Configuración del pedestal
+  const pedestalScale = 0.6;
+  const pedestalBaseDesiredY = floorY + 0.05;
   const pedestalPosition: [number, number, number] = [
     0,
     pedestalBaseDesiredY,
     0,
   ];
 
-  // Estimated height of the scaled pedestal. Used to position the Anceu model on top.
-  // (Original_max_y - Original_min_y) * pedestalScale = (0.7637 - (-0.5535)) * 0.6 = 1.3172 * 0.6 = ~0.79
+  // Configuración del modelo principal
   const estimatedPedestalHeight = 1.3172 * pedestalScale;
-
-  // --- Anceu Model (Model3DComponent) Configuration ---
-  // The Anceu model has its own internal transformations.
-  // This positions its wrapping group so the model sits on top of the pedestal.
   const anceuModelBaseY = pedestalPosition[1] + estimatedPedestalHeight;
   const anceuModelGroupPosition: [number, number, number] = [
     0,
@@ -378,9 +414,7 @@ export default function Model3DViewerScene({
   }, []);
 
   const handleCanvasClick = () => {
-    // Pointer lock is managed by PlayerController/PointerLockControls.
-    // This click listener is a fallback to ensure canvas focus or initiate lock if needed.
-    const canvasEl = document.querySelector("canvas"); // Assuming only one canvas
+    const canvasEl = document.querySelector("canvas");
     if (canvasEl && document.pointerLockElement === null) {
       (canvasEl as any).requestPointerLock?.();
     }
@@ -401,25 +435,37 @@ export default function Model3DViewerScene({
         margin: 0,
         overflow: "hidden",
         position: "relative",
-        cursor: isPointerLockActive ? "none" : "auto", // Hide cursor when pointer is locked
+        cursor: isPointerLockActive ? "none" : "auto",
       }}
-      onClick={handleCanvasClick} // Attempt to lock pointer on container click
+      onClick={handleCanvasClick}
     >
       <Canvas shadows dpr={[1, 1.5]}>
-        <PerspectiveCamera makeDefault fov={60} position={[0, 0, 0]} />{" "}
-        {/* Camera position is managed by PlayerController */}
+        <PerspectiveCamera makeDefault fov={60} position={[0, 0, 0]} />
         <PlayerController floorY={floorY} />
+
+        {/* Iluminación */}
         <GalleryLights />
+
+        {/* Estructura de la galería */}
         <GalleryWalls />
-        <Floor /> {/* Floor Y position: -1.5 */}
-        <Ceiling /> {/* Add ceiling */}
+        <Floor />
+        <Ceiling />
+
+        {/* Modelo principal con pedestal */}
         <PedestalModel position={pedestalPosition} modelScale={pedestalScale} />
+
+        {/* Mobiliario */}
+        <GalleryBenches floorY={floorY} />
+        <CeilingFixtures />
+
         <React.Suspense fallback={null}>
           <group position={anceuModelGroupPosition}>
             <Model3DComponent url={modelUrl} />
           </group>
           <Environment preset="sunset" />
         </React.Suspense>
+
+        {/* Mensaje de instrucciones */}
         {!isPointerLockActive && (
           <Html center>
             <div
@@ -436,6 +482,8 @@ export default function Model3DViewerScene({
           </Html>
         )}
       </Canvas>
+
+      {/* Botón de retorno */}
       <button
         onClick={handleBack}
         style={{

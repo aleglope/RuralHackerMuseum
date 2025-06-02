@@ -33,7 +33,7 @@ export const drawingImages: ImageMetadata[] = [
     title: "Tapiz Natural",
     artist: "Artista Desconocido",
     date: "Desconocida",
-    link: "",
+    link: "https://www.instagram.com/p/DAmL2-mMgoB/?img_index=1",
     description:
       "Una artista presenta un gran tapiz hecho con elementos naturales como ramas, hojas y flores, demostrando una conexión profunda con el arte y la naturaleza.",
     modelViewerPath: "/models/Anceu-Coliving-30-5-2025-textured_model.glb",

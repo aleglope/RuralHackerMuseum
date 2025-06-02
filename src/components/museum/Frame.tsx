@@ -85,7 +85,7 @@ const Frame = forwardRef<THREE.Mesh, FrameProps>(
       }
     };
 
-    const linkBaseY = -height / 2 - 0.2;
+    const linkBaseY = -height / 2 - 0.31;
     const linkSpacing = 0.15;
 
     return (
@@ -99,7 +99,7 @@ const Frame = forwardRef<THREE.Mesh, FrameProps>(
           receiveShadow
         >
           <boxGeometry args={[width + 0.1, height + 0.1, 0.1]} />
-          <meshStandardMaterial color="#222" />
+          <meshStandardMaterial color="#D95829" />
 
           <mesh position={[0, 0, 0.051]}>
             <planeGeometry args={[width, height]} />
@@ -124,19 +124,20 @@ const Frame = forwardRef<THREE.Mesh, FrameProps>(
 
         <Text
           position={[0, height / 2 + 0.1, 0.06]}
-          fontSize={0.07}
+          fontSize={0.08}
           color="#fff"
           anchorX="center"
           anchorY="bottom"
           maxWidth={width}
           textAlign="center"
           font="/fonts/Inter_28pt-SemiBold.ttf"
+          letterSpacing={-0.005}
         >
           {`${image.title}\n`}
           <meshStandardMaterial emissive="#ffffff" emissiveIntensity={0.5} />
         </Text>
         <Text
-          position={[0, -height / 2 - 0.05, 0.06]}
+          position={[0, -height / 2 - 0.1, 0.06]}
           fontSize={0.05}
           color="#ccc"
           anchorX="center"
@@ -145,6 +146,7 @@ const Frame = forwardRef<THREE.Mesh, FrameProps>(
           textAlign="center"
           lineHeight={1.2}
           font="/fonts/Inter_28pt-SemiBold.ttf"
+          letterSpacing={-0.003}
         >
           {`${image.artist}\n${image.date}`}
         </Text>
@@ -172,6 +174,7 @@ const Frame = forwardRef<THREE.Mesh, FrameProps>(
                 font="/fonts/Inter_28pt-SemiBold.ttf"
                 anchorX="center"
                 anchorY="middle"
+                letterSpacing={-0.003}
               >
                 Abrir en Instagram →
               </Text>
@@ -201,11 +204,12 @@ const Frame = forwardRef<THREE.Mesh, FrameProps>(
           >
             <group position={[0, 0, 0.06]}>
               <Text
-                fontSize={0.06}
+                fontSize={0.07}
                 color={modelLinkHovered ? "#61dafb" : "#aaa"}
                 font="/fonts/Inter_28pt-SemiBold.ttf"
                 anchorX="center"
                 anchorY="middle"
+                letterSpacing={-0.001}
               >
                 Ver Modelo 3D 🖼️
               </Text>
