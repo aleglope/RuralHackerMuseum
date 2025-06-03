@@ -21,6 +21,11 @@ export const MODEL_PATHS = {
     PEDESTAL: "/models/pedestal.gltf",
   },
 
+  // Arquitectura
+  ARCHITECTURE: {
+    WINDOW: "/models/window.glb",
+  },
+
   // Modelo principal
   MAIN: {
     ANCEU: "/models/Anceu-Coliving-30-5-2025-textured_model.glb",

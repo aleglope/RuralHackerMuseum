@@ -19,6 +19,7 @@ import {
   Plant2,
   Plant3,
   Plant4,
+  Window,
 } from "../museum/models";
 import { ModelPreloader } from "../shared/ModelPreloader";
 import {
@@ -44,8 +45,69 @@ const {
 // COMPONENTES DE LA GALERÍA - ESTRUCTURA
 // ============================================================================
 
-// Componente del suelo de la galería con texturas
+// Componente del suelo de la galería con texturas de bambú
 const Floor = () => {
+  // Usando la textura de bambú con brillo que estaba en el techo
+  const texturePathBase =
+    "/textures/rock-wall-mortar-ue/bamboo-wood-semigloss-bl/";
+  const [albedoMap, normalMap, aoMap] = useTexture([
+    `${texturePathBase}bamboo-wood-semigloss-albedo.png`,
+    `${texturePathBase}bamboo-wood-semigloss-normal.png`,
+    `${texturePathBase}bamboo-wood-semigloss-ao.png`,
+  ]);
+
+  // Textura de piedra original del suelo (comentada)
+  /*
+  const { base, albedo, normal, roughness, metallic, ao, height } =
+    TEXTURE_PATHS.ROCK_WALL;
+
+  const [albedoMap, normalMap, roughnessMap, metallicMap, aoMap, heightMap] =
+    useTexture([
+      `${base}${albedo}`,
+      `${base}${normal}`,
+      `${base}${roughness}`,
+      `${base}${metallic}`,
+      `${base}${ao}`,
+      `${base}${height}`,
+    ]);
+  */
+
+  React.useEffect(() => {
+    [albedoMap, normalMap, aoMap].forEach((map) => {
+      if (map) {
+        map.wrapS = THREE.RepeatWrapping;
+        map.wrapT = THREE.RepeatWrapping;
+        map.repeat.set(12, 12); // Aumentado para mejor detalle en el suelo
+        map.minFilter = THREE.LinearMipmapLinearFilter;
+        map.magFilter = THREE.LinearFilter;
+        map.needsUpdate = true;
+      }
+    });
+  }, [albedoMap, normalMap, aoMap]);
+
+  return (
+    <mesh
+      rotation={[-Math.PI / 2, 0, 0]}
+      position={[0, floorY, 0]}
+      receiveShadow
+    >
+      <planeGeometry args={[50, 50]} />
+      <meshStandardMaterial
+        map={albedoMap}
+        normalMap={normalMap}
+        aoMap={aoMap}
+        roughness={0.3} // Menos rugoso para más brillo
+        metalness={0.0}
+        displacementScale={0.01}
+        normalScale={new THREE.Vector2(0.3, 0.3)}
+      />
+    </mesh>
+  );
+};
+
+// Componente de las paredes de la galería
+const GalleryWalls = ({ floorY }: { floorY: number }) => {
+  // Usando la textura de piedra completa que estaba en el techo
   const { base, albedo, normal, roughness, metallic, ao, height } =
     TEXTURE_PATHS.ROCK_WALL;
 
@@ -59,42 +121,8 @@ const Floor = () => {
       `${base}${height}`,
     ]);
 
-  React.useEffect(() => {
-    [albedoMap, normalMap, roughnessMap, metallicMap, aoMap, heightMap].forEach(
-      (map) => {
-        if (map) {
-          map.wrapS = THREE.RepeatWrapping;
-          map.wrapT = THREE.RepeatWrapping;
-          map.repeat.set(12, 12);
-          map.needsUpdate = true;
-        }
-      }
-    );
-  }, [albedoMap, normalMap, roughnessMap, metallicMap, aoMap, heightMap]);
-
-  return (
-    <mesh
-      rotation={[-Math.PI / 2, 0, 0]}
-      position={[0, floorY, 0]}
-      receiveShadow
-    >
-      <planeGeometry args={[50, 50]} />
-      <meshStandardMaterial
-        map={albedoMap}
-        normalMap={normalMap}
-        roughnessMap={roughnessMap}
-        metalnessMap={metallicMap}
-        aoMap={aoMap}
-        displacementMap={heightMap}
-        displacementScale={0.02}
-        normalScale={new THREE.Vector2(0.5, 0.5)}
-      />
-    </mesh>
-  );
-};
-
-// Componente de las paredes de la galería
-const GalleryWalls = () => {
+  // Texturas originales de paredes (comentadas para probar)
+  /*
   const [albedoMap, normalMap, roughnessMap, metallicMap, aoMap, heightMap] =
     useTexture([
       "/textures/rock-wall-mortar-ue/rock-wall-mortar_albedo.png",
@@ -104,20 +132,52 @@ const GalleryWalls = () => {
       "/textures/rock-wall-mortar-ue/rock-wall-mortar_ao.png",
       "/textures/rock-wall-mortar-ue/rock-wall-mortar_height.png",
     ]);
+  */
 
-  React.useEffect(() => {
-    [albedoMap, normalMap, roughnessMap, metallicMap, aoMap, heightMap].forEach(
-      (map) => {
-        if (map) {
-          map.wrapS = THREE.RepeatWrapping;
-          map.wrapT = THREE.RepeatWrapping;
-          map.repeat.set(4, 2);
-          map.needsUpdate = true;
-        }
-      }
-    );
-  }, [albedoMap, normalMap, roughnessMap, metallicMap, aoMap, heightMap]);
+  // Controles para la ventana (valores fijos que funcionan correctamente)
+  const {
+    windowX,
+    windowY,
+    windowZ,
+    windowScale,
+    windowRotationY,
+    windowWidth,
+    windowHeight,
+  } = useControls("🪟 Controles de Ventana", {
+    windowX: { value: -9.8, min: -12, max: -8, step: 0.1 },
+    windowY: { value: -0.3, min: floorY, max: floorY + 4, step: 0.1 },
+    windowZ: { value: -8.5, min: -9, max: -3, step: 0.1 },
+    windowScale: { value: 0.9, min: 0.5, max: 3.0, step: 0.1 },
+    windowRotationY: {
+      value: Math.PI / 2,
+      min: 0,
+      max: Math.PI * 2,
+      step: 0.1,
+    },
+    windowWidth: { value: 2.5, min: 1, max: 6, step: 0.1 },
+    windowHeight: { value: 2.0, min: 1, max: 5, step: 0.1 },
+  });
 
+  // Controles para las secciones de pared
+  const {
+    upperSectionOffsetY,
+    upperSectionWidth,
+    upperSectionHeight,
+    rightSectionOffsetX,
+    rightSectionOffsetZ,
+    rightSectionVisible,
+    upperSectionVisible,
+  } = useControls("🧱 Controles de Secciones de Pared", {
+    upperSectionVisible: true,
+    upperSectionOffsetY: { value: -0.9, min: -5, max: 2, step: 0.1 },
+    upperSectionWidth: { value: 3.1, min: 1, max: 15, step: 0.1 },
+    upperSectionHeight: { value: 1, min: 0, max: 10, step: 0.1 },
+    rightSectionVisible: true,
+    rightSectionOffsetX: { value: -10, min: -12, max: -8, step: 0.1 },
+    rightSectionOffsetZ: { value: 0.3, min: -5, max: 5, step: 0.1 },
+  });
+
+  // Material estándar para paredes (con textura completa de piedra)
   const wallMaterial = (
     <meshStandardMaterial
       map={albedoMap}
@@ -128,8 +188,122 @@ const GalleryWalls = () => {
       displacementMap={heightMap}
       displacementScale={0.02}
       normalScale={new THREE.Vector2(0.5, 0.5)}
+      transparent={false}
+      alphaTest={0.1}
     />
   );
+
+  // Valores fijos para la estructura de la pared (no cambiarán)
+  const wallHeight = 10;
+  const wallLength = 20;
+  const wallCenterY = 2.5;
+  const wallZ = 0;
+  const wallBottom = wallCenterY - wallHeight / 2; // -2.5
+  const wallTop = wallCenterY + wallHeight / 2; // 7.5
+
+  // Posición fija de la ventana (basada en valores que funcionan)
+  const windowCenterZ = windowZ;
+  const windowBottom = windowY;
+  const windowTop = windowY + windowHeight;
+  const windowLeft = windowCenterZ - windowWidth / 2;
+  const windowRight = windowCenterZ + windowWidth / 2;
+
+  // Coordenadas fijas de la pared
+  const wallStartZ = -10;
+  const wallEndZ = 10;
+
+  // Cálculos fijos de las secciones
+  const leftSectionLength = Math.max(0, windowLeft - wallStartZ);
+  const rightSectionLength = Math.max(0, wallEndZ - windowRight);
+  const bottomSectionHeight = Math.max(0, windowBottom - wallBottom);
+  const topSectionHeight = Math.max(0, wallTop - windowTop);
+
+  // Material específico para la sección superior (evita estiramiento)
+  const upperSectionMaterial = React.useMemo(() => {
+    // Crear texturas clonadas para la sección superior
+    const upperAlbedo = albedoMap?.clone();
+    const upperNormal = normalMap?.clone();
+    const upperRoughness = roughnessMap?.clone();
+    const upperMetallic = metallicMap?.clone();
+    const upperAo = aoMap?.clone();
+    const upperHeight = heightMap?.clone();
+
+    // Calcular repeat proporcional pero ajustado para consistencia
+    [
+      upperAlbedo,
+      upperNormal,
+      upperRoughness,
+      upperMetallic,
+      upperAo,
+      upperHeight,
+    ].forEach((map) => {
+      if (map) {
+        map.wrapS = THREE.RepeatWrapping;
+        map.wrapT = THREE.RepeatWrapping;
+        // Calcular repeat proporcional al tamaño real para evitar estiramiento
+        const sectionWidth = upperSectionWidth;
+        const sectionHeight = topSectionHeight + upperSectionHeight;
+
+        // Usar el mismo factor de escala que las paredes estándar
+        const baseRepeatX = 4; // Repeat base de las paredes
+        const baseRepeatY = 2; // Repeat base de las paredes
+        const standardWidth = 20; // Ancho estándar de pared
+        const standardHeight = 10; // Alto estándar de pared
+
+        const repeatX = Math.max(
+          0.5,
+          (sectionWidth / standardWidth) * baseRepeatX
+        );
+        const repeatY = Math.max(
+          0.5,
+          (sectionHeight / standardHeight) * baseRepeatY
+        );
+
+        map.repeat.set(repeatX, repeatY);
+        map.needsUpdate = true;
+      }
+    });
+
+    return (
+      <meshStandardMaterial
+        map={upperAlbedo}
+        normalMap={upperNormal}
+        roughnessMap={upperRoughness}
+        metalnessMap={upperMetallic}
+        aoMap={upperAo}
+        displacementMap={upperHeight}
+        displacementScale={0.02}
+        normalScale={new THREE.Vector2(0.5, 0.5)}
+        transparent={false}
+        alphaTest={0.1}
+      />
+    );
+  }, [
+    albedoMap,
+    normalMap,
+    roughnessMap,
+    metallicMap,
+    aoMap,
+    heightMap,
+    upperSectionWidth,
+    topSectionHeight,
+    upperSectionHeight,
+  ]);
+
+  React.useEffect(() => {
+    [albedoMap, normalMap, roughnessMap, metallicMap, aoMap, heightMap].forEach(
+      (map) => {
+        if (map) {
+          map.wrapS = THREE.RepeatWrapping;
+          map.wrapT = THREE.RepeatWrapping;
+          map.repeat.set(4, 2); // Ajustado para las paredes
+          map.minFilter = THREE.LinearMipmapLinearFilter;
+          map.magFilter = THREE.LinearFilter;
+          map.needsUpdate = true;
+        }
+      }
+    );
+  }, [albedoMap, normalMap, roughnessMap, metallicMap, aoMap, heightMap]);
 
   return (
     <group>
@@ -139,16 +313,53 @@ const GalleryWalls = () => {
         {wallMaterial}
       </mesh>
 
-      {/* Pared izquierda */}
-      <mesh
-        position={[-10, 2.5, 0]}
-        rotation={[0, Math.PI / 2, 0]}
-        receiveShadow
-        castShadow
-      >
-        <planeGeometry args={[20, 10]} />
-        {wallMaterial}
-      </mesh>
+      {/* Pared izquierda con hueco para ventana */}
+      <group>
+        {/* Sección superior de la pared izquierda (encima de la ventana) */}
+        {upperSectionVisible && topSectionHeight > 0.05 && (
+          <mesh
+            position={[
+              -10,
+              windowTop +
+                (topSectionHeight + upperSectionHeight) / 2 +
+                upperSectionOffsetY,
+              windowCenterZ,
+            ]}
+            rotation={[0, Math.PI / 2, 0]}
+            receiveShadow
+            castShadow
+          >
+            <planeGeometry
+              args={[upperSectionWidth, topSectionHeight + upperSectionHeight]}
+            />
+            {upperSectionMaterial}
+          </mesh>
+        )}
+
+        {/* Sección derecha de la pared (después de la ventana) */}
+        {rightSectionVisible && rightSectionLength > 0.05 && (
+          <mesh
+            position={[
+              rightSectionOffsetX,
+              wallCenterY,
+              windowRight + rightSectionLength / 2 + rightSectionOffsetZ,
+            ]}
+            rotation={[0, Math.PI / 2, 0]}
+            receiveShadow
+            castShadow
+          >
+            <planeGeometry args={[rightSectionLength, wallHeight]} />
+            {wallMaterial}
+          </mesh>
+        )}
+      </group>
+
+      {/* Ventana en pared izquierda (posición fija) */}
+      <Window
+        position={[windowX, windowY, windowZ]}
+        rotation={[0, windowRotationY, 0]}
+        scale={[windowScale, windowScale, windowScale]}
+      />
 
       {/* Pared derecha */}
       <mesh
@@ -175,36 +386,53 @@ const GalleryWalls = () => {
   );
 };
 
-// Componente del techo con texturas de bambú
+// Componente del techo con textura de bambú sin brillo
 const Ceiling = () => {
+  // Usando la misma textura de bambú que el suelo pero sin brillo
   const texturePathBase =
     "/textures/rock-wall-mortar-ue/bamboo-wood-semigloss-bl/";
-  const [albedoMap, normalMap, roughnessMap, metallicMap, aoMap] = useTexture([
+  const [albedoMap, normalMap, aoMap] = useTexture([
     `${texturePathBase}bamboo-wood-semigloss-albedo.png`,
     `${texturePathBase}bamboo-wood-semigloss-normal.png`,
-
     `${texturePathBase}bamboo-wood-semigloss-ao.png`,
   ]);
 
+  // Textura de piedra anterior (comentada)
+  /*
+  const { base, albedo, normal, roughness, metallic, ao, height } =
+    TEXTURE_PATHS.ROCK_WALL;
+
+  const [albedoMap, normalMap, roughnessMap, metallicMap, aoMap, heightMap] =
+    useTexture([
+      `${base}${albedo}`,
+      `${base}${normal}`,
+      `${base}${roughness}`,
+      `${base}${metallic}`,
+      `${base}${ao}`,
+      `${base}${height}`,
+    ]);
+  */
+
   React.useEffect(() => {
-    [albedoMap, normalMap, roughnessMap, metallicMap, aoMap].forEach((map) => {
+    [albedoMap, normalMap, aoMap].forEach((map) => {
       if (map) {
         map.wrapS = THREE.RepeatWrapping;
         map.wrapT = THREE.RepeatWrapping;
-        map.repeat.set(8, 8);
+        map.repeat.set(8, 8); // Ajustado para el techo
         map.needsUpdate = true;
       }
     });
-  }, [albedoMap, normalMap, roughnessMap, metallicMap, aoMap]);
+  }, [albedoMap, normalMap, aoMap]);
 
   return (
     <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 7.5, 0]} receiveShadow>
       <planeGeometry args={[50, 50]} />
       <meshStandardMaterial
         map={albedoMap}
-        roughness={0.9}
-        metalness={0.0}
+        normalMap={normalMap}
         aoMap={aoMap}
+        roughness={0.9} // Muy rugoso para eliminar el brillo
+        metalness={0.0}
         side={THREE.DoubleSide}
       />
     </mesh>
@@ -651,7 +879,7 @@ export default function Model3DViewerScene({
         <GalleryLights />
 
         {/* Estructura de la galería */}
-        <GalleryWalls />
+        <GalleryWalls floorY={floorY} />
         <Floor />
         <Ceiling />
 
