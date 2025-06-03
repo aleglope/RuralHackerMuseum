@@ -176,7 +176,7 @@ const Frame = forwardRef<THREE.Mesh, FrameProps>(
                 anchorY="middle"
                 letterSpacing={-0.003}
               >
-                Abrir en Instagram →
+                Open on Instagram →
               </Text>
             </group>
             <boxGeometry args={[0.8, 0.1, 0.05]} />
@@ -211,7 +211,7 @@ const Frame = forwardRef<THREE.Mesh, FrameProps>(
                 anchorY="middle"
                 letterSpacing={-0.001}
               >
-                Ver Modelo 3D 🖼️
+                View 3D Model 🖼️
               </Text>
             </group>
             <boxGeometry args={[0.8, 0.1, 0.05]} />

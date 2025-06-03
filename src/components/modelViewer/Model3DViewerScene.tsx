@@ -717,13 +717,32 @@ const usePlayerControls = () => {
   return keys;
 };
 
-// Componente de controles táctiles para móviles
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobileDevice =
+        window.innerWidth <= 768 ||
+        "ontouchstart" in window ||
+        navigator.maxTouchPoints > 0;
+      setIsMobile(isMobileDevice);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  return isMobile;
+};
+
 const TouchControls = ({
   onMove,
 }: {
   onMove: (direction: string, active: boolean) => void;
 }) => {
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
   const buttonRefs = useRef<{ [key: string]: HTMLDivElement | null }>({
     forward: null,
     backward: null,
@@ -732,24 +751,17 @@ const TouchControls = ({
   });
 
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768 || "ontouchstart" in window);
-    };
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
-
-  useEffect(() => {
     if (!isMobile) return;
 
     const handleTouchStart = (direction: string) => (event: TouchEvent) => {
       event.preventDefault();
+      event.stopPropagation();
       onMove(direction, true);
     };
 
     const handleTouchEnd = (direction: string) => (event: TouchEvent) => {
       event.preventDefault();
+      event.stopPropagation();
       onMove(direction, false);
     };
 
@@ -768,6 +780,20 @@ const TouchControls = ({
         });
         element.addEventListener("touchcancel", touchEndHandler, {
           passive: false,
+        });
+
+        // También agregar eventos de mouse para compatibilidad
+        element.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          onMove(direction, true);
+        });
+        element.addEventListener("mouseup", (e) => {
+          e.preventDefault();
+          onMove(direction, false);
+        });
+        element.addEventListener("mouseleave", (e) => {
+          e.preventDefault();
+          onMove(direction, false);
         });
 
         // Almacenar handlers para cleanup
@@ -797,13 +823,14 @@ const TouchControls = ({
 
   const buttonStyle = {
     position: "absolute" as const,
-    width: "60px",
-    height: "60px",
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    border: "2px solid rgba(255, 255, 255, 0.5)",
+    width: "70px",
+    height: "70px",
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    border: "3px solid rgba(255, 255, 255, 0.6)",
     borderRadius: "50%",
     color: "white",
-    fontSize: "20px",
+    fontSize: "24px",
+    fontWeight: "bold" as const,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -811,6 +838,7 @@ const TouchControls = ({
     touchAction: "manipulation" as const,
     zIndex: 1001,
     cursor: "pointer",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
   };
 
   return (
@@ -822,8 +850,8 @@ const TouchControls = ({
         }}
         style={{
           ...buttonStyle,
-          bottom: "140px",
-          right: "80px",
+          bottom: "160px",
+          right: "90px",
         }}
       >
         ↑
@@ -836,8 +864,8 @@ const TouchControls = ({
         }}
         style={{
           ...buttonStyle,
-          bottom: "70px",
-          right: "80px",
+          bottom: "80px",
+          right: "90px",
         }}
       >
         ↓
@@ -850,8 +878,8 @@ const TouchControls = ({
         }}
         style={{
           ...buttonStyle,
-          bottom: "105px",
-          right: "145px",
+          bottom: "120px",
+          right: "170px",
         }}
       >
         ←
@@ -864,14 +892,93 @@ const TouchControls = ({
         }}
         style={{
           ...buttonStyle,
-          bottom: "105px",
-          right: "15px",
+          bottom: "120px",
+          right: "10px",
         }}
       >
         →
       </div>
     </>
   );
+};
+
+// Componente de controles de cámara táctil para móviles
+const TouchCameraControls = ({ camera }: { camera: THREE.Camera }) => {
+  const isMobile = useIsMobile();
+  const touchStateRef = useRef({
+    isMoving: false,
+    lastTouchX: 0,
+    lastTouchY: 0,
+    rotationX: 0,
+    rotationY: 0,
+  });
+
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const canvas = document.querySelector("canvas");
+    if (!canvas) return;
+
+    const handleTouchStart = (event: TouchEvent) => {
+      if (event.touches.length === 1) {
+        event.preventDefault();
+        const touch = event.touches[0];
+        touchStateRef.current.isMoving = true;
+        touchStateRef.current.lastTouchX = touch.clientX;
+        touchStateRef.current.lastTouchY = touch.clientY;
+      }
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      if (event.touches.length === 1 && touchStateRef.current.isMoving) {
+        event.preventDefault();
+        const touch = event.touches[0];
+
+        const deltaX = touch.clientX - touchStateRef.current.lastTouchX;
+        const deltaY = touch.clientY - touchStateRef.current.lastTouchY;
+
+        // Sensibilidad de la cámara
+        const sensitivity = 0.003;
+
+        // Actualizar rotación
+        touchStateRef.current.rotationY -= deltaX * sensitivity;
+        touchStateRef.current.rotationX -= deltaY * sensitivity;
+
+        // Limitar rotación vertical
+        touchStateRef.current.rotationX = Math.max(
+          -Math.PI / 2 + 0.1,
+          Math.min(Math.PI / 2 - 0.1, touchStateRef.current.rotationX)
+        );
+
+        // Aplicar rotación a la cámara
+        camera.rotation.order = "YXZ";
+        camera.rotation.y = touchStateRef.current.rotationY;
+        camera.rotation.x = touchStateRef.current.rotationX;
+
+        touchStateRef.current.lastTouchX = touch.clientX;
+        touchStateRef.current.lastTouchY = touch.clientY;
+      }
+    };
+
+    const handleTouchEnd = (event: TouchEvent) => {
+      if (event.touches.length === 0) {
+        touchStateRef.current.isMoving = false;
+      }
+    };
+
+    // Agregar event listeners no pasivos
+    canvas.addEventListener("touchstart", handleTouchStart, { passive: false });
+    canvas.addEventListener("touchmove", handleTouchMove, { passive: false });
+    canvas.addEventListener("touchend", handleTouchEnd, { passive: false });
+
+    return () => {
+      canvas.removeEventListener("touchstart", handleTouchStart);
+      canvas.removeEventListener("touchmove", handleTouchMove);
+      canvas.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [camera, isMobile]);
+
+  return null;
 };
 
 // ============================================================================
@@ -907,29 +1014,36 @@ export default function Model3DViewerScene({
 
   const [isPointerLockActive, setIsPointerLockActive] = useState(false);
   const touchControlsRef = useRef<any>();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
-    const handlePointerLockChange = () => {
-      setIsPointerLockActive(document.pointerLockElement !== null);
-    };
-    document.addEventListener("pointerlockchange", handlePointerLockChange);
-    return () => {
-      document.removeEventListener(
-        "pointerlockchange",
-        handlePointerLockChange
-      );
-    };
-  }, []);
+    // Solo manejar pointer lock en PC
+    if (!isMobile) {
+      const handlePointerLockChange = () => {
+        setIsPointerLockActive(document.pointerLockElement !== null);
+      };
+      document.addEventListener("pointerlockchange", handlePointerLockChange);
+      return () => {
+        document.removeEventListener(
+          "pointerlockchange",
+          handlePointerLockChange
+        );
+      };
+    }
+  }, [isMobile]);
 
   const handleCanvasClick = () => {
-    const canvasEl = document.querySelector("canvas");
-    if (canvasEl && document.pointerLockElement === null) {
-      (canvasEl as any).requestPointerLock?.();
+    // Solo activar pointer lock en PC
+    if (!isMobile) {
+      const canvasEl = document.querySelector("canvas");
+      if (canvasEl && document.pointerLockElement === null) {
+        (canvasEl as any).requestPointerLock?.();
+      }
     }
   };
 
   const handleBack = () => {
-    if (document.pointerLockElement) {
+    if (!isMobile && document.pointerLockElement) {
       document.exitPointerLock();
     }
     onBack();
@@ -949,7 +1063,7 @@ export default function Model3DViewerScene({
         margin: 0,
         overflow: "hidden",
         position: "relative",
-        cursor: isPointerLockActive ? "none" : "auto",
+        cursor: !isMobile && isPointerLockActive ? "none" : "auto",
       }}
       onClick={handleCanvasClick}
     >
@@ -1012,7 +1126,7 @@ export default function Model3DViewerScene({
       </button>
 
       {/* Information panel - navigation controls only */}
-      {!isPointerLockActive && (
+      {(!isPointerLockActive || isMobile) && (
         <div
           style={{
             position: "absolute",
@@ -1032,14 +1146,19 @@ export default function Model3DViewerScene({
           <div style={{ marginBottom: "12px" }}>
             <strong>🎮 Navigation Controls:</strong>
           </div>
-          <div style={{ marginBottom: "12px" }}>
-            <strong>PC:</strong> Click on the scene to activate controls. Use
-            WASD to move and mouse to look around. Press ESC to release.
-          </div>
-          <div>
-            <strong>Mobile:</strong> Use the touch buttons in the bottom right
-            corner to move. Swipe on the screen to look around.
-          </div>
+          {!isMobile ? (
+            <>
+              <div style={{ marginBottom: "12px" }}>
+                <strong>PC:</strong> Click on the scene to activate controls.
+                Use WASD to move and mouse to look around. Press ESC to release.
+              </div>
+            </>
+          ) : (
+            <div>
+              <strong>Mobile:</strong> Use the touch buttons in the bottom right
+              corner to move. Touch and drag on the screen to look around.
+            </div>
+          )}
         </div>
       )}
 
@@ -1049,7 +1168,7 @@ export default function Model3DViewerScene({
   );
 }
 
-// Componente PlayerController actualizado para recibir la referencia de controles táctiles
+// Componente PlayerController actualizado para distinguir entre PC y móvil
 const PlayerControllerWithTouch = ({
   floorY,
   onTouchControlsRef,
@@ -1061,6 +1180,7 @@ const PlayerControllerWithTouch = ({
   const controlsRef = useRef<any>();
   const playerVelocity = useRef(new THREE.Vector3());
   const keys = usePlayerControls();
+  const isMobile = useIsMobile();
   const touchControls = useRef({
     forward: false,
     backward: false,
@@ -1095,32 +1215,42 @@ const PlayerControllerWithTouch = ({
   useEffect(() => {
     camera.position.set(0, floorY + CAMERA_HEIGHT_ABOVE_FLOOR, 5);
     camera.lookAt(0, floorY + CAMERA_HEIGHT_ABOVE_FLOOR, 0);
-    if (controlsRef.current) {
+
+    // Solo usar PointerLockControls en PC
+    if (!isMobile && controlsRef.current) {
       controlsRef.current.lock();
       setTimeout(() => controlsRef.current.unlock(), 0);
     }
-  }, [camera, floorY]);
+  }, [camera, floorY, isMobile]);
 
   useFrame((state, delta) => {
-    if (!controlsRef.current || !controlsRef.current.isLocked) {
-      playerVelocity.current.set(0, 0, 0);
-      return;
+    // En móviles, no usar PointerLockControls
+    if (isMobile || !controlsRef.current || !controlsRef.current.isLocked) {
+      // Para móviles, permitir movimiento sin lock
+      if (!isMobile) {
+        playerVelocity.current.set(0, 0, 0);
+        return;
+      }
     }
 
     const speedDelta = delta * PLAYER_SPEED;
     const moveDirection = new THREE.Vector3();
 
-    // Controles de teclado
-    if (keys.current.KeyW) moveDirection.z = -1;
-    if (keys.current.KeyS) moveDirection.z = 1;
-    if (keys.current.KeyA) moveDirection.x = -1;
-    if (keys.current.KeyD) moveDirection.x = 1;
+    // Controles de teclado (PC)
+    if (!isMobile) {
+      if (keys.current.KeyW) moveDirection.z = -1;
+      if (keys.current.KeyS) moveDirection.z = 1;
+      if (keys.current.KeyA) moveDirection.x = -1;
+      if (keys.current.KeyD) moveDirection.x = 1;
+    }
 
     // Controles táctiles (móviles)
-    if (touchControls.current.forward) moveDirection.z = -1;
-    if (touchControls.current.backward) moveDirection.z = 1;
-    if (touchControls.current.left) moveDirection.x = -1;
-    if (touchControls.current.right) moveDirection.x = 1;
+    if (isMobile) {
+      if (touchControls.current.forward) moveDirection.z = -1;
+      if (touchControls.current.backward) moveDirection.z = 1;
+      if (touchControls.current.left) moveDirection.x = -1;
+      if (touchControls.current.right) moveDirection.x = 1;
+    }
 
     if (moveDirection.lengthSq() > 0) {
       moveDirection.normalize();
@@ -1145,6 +1275,14 @@ const PlayerControllerWithTouch = ({
   });
 
   return (
-    <PointerLockControls ref={controlsRef} args={[camera, gl.domElement]} />
+    <>
+      {/* PointerLockControls solo para PC */}
+      {!isMobile && (
+        <PointerLockControls ref={controlsRef} args={[camera, gl.domElement]} />
+      )}
+
+      {/* Controles de cámara táctil solo para móviles */}
+      {isMobile && <TouchCameraControls camera={camera} />}
+    </>
   );
 };

@@ -5,8 +5,11 @@ export type Vector3Tuple = [number, number, number];
 
 // Shared props for 3D model components
 export interface Model3DProps extends GroupProps {
+  modelPath?: string;
   modelType?: string;
   scale?: number | Vector3Tuple;
+  castShadow?: boolean;
+  receiveShadow?: boolean;
 }
 
 // Light configuration
