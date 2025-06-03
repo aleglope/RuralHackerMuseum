@@ -8,7 +8,6 @@ import {
   Html,
   useHelper,
 } from "@react-three/drei";
-import { useControls } from "leva";
 import Model3DComponent from "./Model3DComponent";
 import { PedestalModel } from "./PedestalModel";
 import { MetalBench } from "../museum/Bench";
@@ -121,61 +120,31 @@ const GalleryWalls = ({ floorY }: { floorY: number }) => {
       `${base}${height}`,
     ]);
 
-  // Texturas originales de paredes (comentadas para probar)
-  /*
-  const [albedoMap, normalMap, roughnessMap, metallicMap, aoMap, heightMap] =
-    useTexture([
-      "/textures/rock-wall-mortar-ue/rock-wall-mortar_albedo.png",
-      "/textures/rock-wall-mortar-ue/rock-wall-mortar_normal-dx.png",
-      "/textures/rock-wall-mortar-ue/rock-wall-mortar_roughness.png",
-      "/textures/rock-wall-mortar-ue/rock-wall-mortar_metallic.png",
-      "/textures/rock-wall-mortar-ue/rock-wall-mortar_ao.png",
-      "/textures/rock-wall-mortar-ue/rock-wall-mortar_height.png",
-    ]);
-  */
+  // Valores fijos para la ventana
+  const windowX = -9.8;
+  const windowY = -0.3;
+  const windowZ = -8.5;
+  const windowScale = 0.9;
+  const windowRotationY = Math.PI / 2;
+  const windowWidth = 2.5;
+  const windowHeight = 2.0;
 
-  // Controles para la ventana (valores fijos que funcionan correctamente)
-  const {
-    windowX,
-    windowY,
-    windowZ,
-    windowScale,
-    windowRotationY,
-    windowWidth,
-    windowHeight,
-  } = useControls("🪟 Controles de Ventana", {
-    windowX: { value: -9.8, min: -12, max: -8, step: 0.1 },
-    windowY: { value: -0.3, min: floorY, max: floorY + 4, step: 0.1 },
-    windowZ: { value: -8.5, min: -9, max: -3, step: 0.1 },
-    windowScale: { value: 0.9, min: 0.5, max: 3.0, step: 0.1 },
-    windowRotationY: {
-      value: Math.PI / 2,
-      min: 0,
-      max: Math.PI * 2,
-      step: 0.1,
-    },
-    windowWidth: { value: 2.5, min: 1, max: 6, step: 0.1 },
-    windowHeight: { value: 2.0, min: 1, max: 5, step: 0.1 },
-  });
+  // Valores fijos para las secciones de pared
+  const upperSectionOffsetY = -0.9;
+  const upperSectionWidth = 3.1;
+  const upperSectionHeight = 1;
+  const rightSectionOffsetX = -10;
+  const rightSectionOffsetZ = 0.3;
+  const rightSectionVisible = true;
+  const upperSectionVisible = true;
 
-  // Controles para las secciones de pared
-  const {
-    upperSectionOffsetY,
-    upperSectionWidth,
-    upperSectionHeight,
-    rightSectionOffsetX,
-    rightSectionOffsetZ,
-    rightSectionVisible,
-    upperSectionVisible,
-  } = useControls("🧱 Controles de Secciones de Pared", {
-    upperSectionVisible: true,
-    upperSectionOffsetY: { value: -0.9, min: -5, max: 2, step: 0.1 },
-    upperSectionWidth: { value: 3.1, min: 1, max: 15, step: 0.1 },
-    upperSectionHeight: { value: 1, min: 0, max: 10, step: 0.1 },
-    rightSectionVisible: true,
-    rightSectionOffsetX: { value: -10, min: -12, max: -8, step: 0.1 },
-    rightSectionOffsetZ: { value: 0.3, min: -5, max: 5, step: 0.1 },
-  });
+  // Valores fijos definitivos para la pared central (posición y dimensiones exactas)
+  const centralWallX = 0.1;
+  const centralWallY = 2.9;
+  const centralWallZ = -0.4; // Valor exacto para evitar interferencia con el modelo
+  const centralWallWidth = 10;
+  const centralWallHeight = 9.2;
+  const centralWallDepth = 0.3; // Grosor de la pared para darle volumen
 
   // Material estándar para paredes (con textura completa de piedra)
   const wallMaterial = (
@@ -382,6 +351,31 @@ const GalleryWalls = ({ floorY }: { floorY: number }) => {
         <planeGeometry args={[20, 10]} />
         {wallMaterial}
       </mesh>
+
+      {/* Pared central detrás del modelo principal - CON GROSOR Y TEXTURA EN AMBAS CARAS */}
+      <mesh
+        position={[centralWallX, centralWallY, centralWallZ]}
+        rotation={[0, 0, 0]}
+        receiveShadow
+        castShadow
+      >
+        <boxGeometry
+          args={[centralWallWidth, centralWallHeight, centralWallDepth]}
+        />
+        <meshStandardMaterial
+          map={albedoMap}
+          normalMap={normalMap}
+          roughnessMap={roughnessMap}
+          metalnessMap={metallicMap}
+          aoMap={aoMap}
+          displacementMap={heightMap}
+          displacementScale={0.02}
+          normalScale={new THREE.Vector2(0.5, 0.5)}
+          transparent={false}
+          alphaTest={0.1}
+          side={THREE.DoubleSide} // Renderizar ambas caras
+        />
+      </mesh>
     </group>
   );
 };
@@ -490,13 +484,26 @@ const GalleryBenches = ({ floorY }: { floorY: number }) => {
 
 // Componente para las plantas decorativas
 const GalleryPlants = ({ floorY }: { floorY: number }) => {
+  // Valores fijos exactos para las plantas del modelo principal
+  const plant1X = -2.0;
+  const plant1Y = -1.5;
+  const plant1Z = 0.1;
+  const plant1Scale = 3.6;
+  const plant1RotationY = 1.0;
+
+  const plant3X = 2.8;
+  const plant3Y = -1.5;
+  const plant3Z = 0.9;
+  const plant3Scale = 1.8;
+  const plant3RotationY = 4.8;
+
   return (
     <>
-      {/* Planta 1 - Al lado del Banco 1 (izquierda) - GRANDE */}
+      {/* Planta 1 - Al lado IZQUIERDO del modelo principal */}
       <Plant1
-        position={[-3.2, floorY, 2.2]}
-        rotation={[0, Math.PI / 3, 0]}
-        scale={[2.4, 2.4, 2.4]}
+        position={[plant1X, plant1Y, plant1Z]}
+        rotation={[0, plant1RotationY, 0]}
+        scale={[plant1Scale, plant1Scale, plant1Scale]}
       />
 
       {/* Planta 2 - Al lado del Banco 1 (izquierda, atrás) - GRANDE */}
@@ -506,11 +513,11 @@ const GalleryPlants = ({ floorY }: { floorY: number }) => {
         scale={[2.2, 2.2, 2.2]}
       />
 
-      {/* Planta 3 - Al lado del Banco 2 (derecha) */}
+      {/* Planta 3 - Al lado DERECHO del modelo principal */}
       <Plant3
-        position={[4.5, floorY, 2]}
-        rotation={[0, -Math.PI / 4, 0]}
-        scale={[1.3, 1.3, 1.3]}
+        position={[plant3X, plant3Y, plant3Z]}
+        rotation={[0, plant3RotationY, 0]}
+        scale={[plant3Scale, plant3Scale, plant3Scale]}
       />
 
       {/* Planta 4 - Al lado del Banco 2 (derecha, atrás) */}
@@ -525,69 +532,41 @@ const GalleryPlants = ({ floorY }: { floorY: number }) => {
 
 // Componente para las lámparas del techo
 const CeilingFixtures = () => {
-  // Controles para las luces
-  const {
-    // Controles para lámpara central (Lámpara 2)
-    centralLampX,
-    centralLampY,
-    centralLampZ,
-    centralLightY,
-    centralIntensity,
-    centralAngle,
-    centralScale,
-    // Controles para lámpara principal
-    mainLampX,
-    mainLampY,
-    mainLampZ,
-    mainLightY,
-    mainIntensity,
-    mainAngle,
-    // Controles para lámparas laterales
-    leftLampX,
-    leftLampY,
-    leftLampZ,
-    leftLightY,
-    leftIntensity,
-    leftAngle,
-    rightLampX,
-    rightLampY,
-    rightLampZ,
-    rightLightY,
-    rightIntensity,
-    rightAngle,
-    lightColor,
-  } = useControls("💡 Controles de Lámparas", {
-    // Lámpara Central (Lámpara 2)
-    centralLampX: { value: -6.6, min: -10, max: 10, step: 0.1 },
-    centralLampY: { value: 4.4, min: 4, max: 8, step: 0.1 },
-    centralLampZ: { value: -6.6, min: -10, max: 10, step: 0.1 },
-    centralLightY: { value: 5.1, min: 4, max: 7, step: 0.1 },
-    centralIntensity: { value: 8.3, min: 0, max: 10, step: 0.1 },
-    centralAngle: { value: 1.5, min: 0.1, max: 1.5, step: 0.05 },
-    centralScale: { value: 2.1, min: 0.5, max: 3.0, step: 0.1 },
-    // Lámpara Principal
-    mainLampX: { value: 0, min: -10, max: 10, step: 0.1 },
-    mainLampY: { value: 6.5, min: 4, max: 8, step: 0.1 },
-    mainLampZ: { value: 6.3, min: -10, max: 10, step: 0.1 },
-    mainLightY: { value: 5.8, min: 4, max: 7, step: 0.1 },
-    mainIntensity: { value: 3.5, min: 0, max: 10, step: 0.1 },
-    mainAngle: { value: 0.6, min: 0.1, max: 1.5, step: 0.05 },
-    // Lámparas Laterales
-    leftLampX: { value: -4, min: -10, max: 10, step: 0.1 },
-    leftLampY: { value: 6.5, min: 4, max: 8, step: 0.1 },
-    leftLampZ: { value: -4, min: -10, max: 10, step: 0.1 },
-    leftLightY: { value: 5.9, min: 4, max: 7, step: 0.1 },
-    leftIntensity: { value: 2.5, min: 0, max: 10, step: 0.1 },
-    leftAngle: { value: 0.5, min: 0.1, max: 1.5, step: 0.05 },
-    rightLampX: { value: 4, min: -10, max: 10, step: 0.1 },
-    rightLampY: { value: 6.5, min: 4, max: 8, step: 0.1 },
-    rightLampZ: { value: -4, min: -10, max: 10, step: 0.1 },
-    rightLightY: { value: 5.9, min: 4, max: 7, step: 0.1 },
-    rightIntensity: { value: 2.5, min: 0, max: 10, step: 0.1 },
-    rightAngle: { value: 0.5, min: 0.1, max: 1.5, step: 0.05 },
-    // Color general
-    lightColor: "#fff8e1",
-  });
+  // Valores fijos para las lámparas (sin controles Leva)
+  // Lámpara Central (Lámpara 2)
+  const centralLampX = -6.6;
+  const centralLampY = 4.4;
+  const centralLampZ = -6.6;
+  const centralLightY = 5.1;
+  const centralIntensity = 8.3;
+  const centralAngle = 1.5;
+  const centralScale = 2.1;
+
+  // Lámpara Principal
+  const mainLampX = 0;
+  const mainLampY = 6.5;
+  const mainLampZ = 6.3;
+  const mainLightY = 5.8;
+  const mainIntensity = 3.5;
+  const mainAngle = 0.6;
+
+  // Lámparas Laterales
+  const leftLampX = -4;
+  const leftLampY = 6.5;
+  const leftLampZ = -4;
+  const leftLightY = 5.9;
+  const leftIntensity = 2.5;
+  const leftAngle = 0.5;
+
+  const rightLampX = 4;
+  const rightLampY = 6.5;
+  const rightLampZ = -4;
+  const rightLightY = 5.9;
+  const rightIntensity = 2.5;
+  const rightAngle = 0.5;
+
+  // Color general
+  const lightColor = "#fff8e1";
 
   return (
     <>

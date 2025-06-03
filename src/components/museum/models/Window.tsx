@@ -5,7 +5,6 @@ Componente para cargar y mostrar el modelo de ventana GLB con vidrio translúcid
 
 import React, { useEffect } from "react";
 import { useGLTF } from "@react-three/drei";
-import { useControls } from "leva";
 import { MODEL_PATHS } from "../../../config/models";
 import { GroupProps } from "@react-three/fiber";
 import * as THREE from "three";
@@ -14,14 +13,11 @@ import * as THREE from "three";
 export function Window(props: GroupProps) {
   const gltf = useGLTF(MODEL_PATHS.ARCHITECTURE.WINDOW);
 
-  // Controles para la transparencia del vidrio
-  const { glassOpacity, glassColor, glassReflectivity, glassRoughness } =
-    useControls("🔍 Vidrio de Ventana", {
-      glassOpacity: { value: 0.25, min: 0, max: 1, step: 0.05 },
-      glassColor: "#87CEEB",
-      glassReflectivity: { value: 0.8, min: 0, max: 1, step: 0.1 },
-      glassRoughness: { value: 0.1, min: 0, max: 1, step: 0.1 },
-    });
+  // Valores fijos para la transparencia del vidrio
+  const glassOpacity = 0.25;
+  const glassColor = "#87CEEB";
+  const glassReflectivity = 0.8;
+  const glassRoughness = 0.1;
 
   // Efecto para modificar los materiales del modelo
   useEffect(() => {
