@@ -687,7 +687,7 @@ const CeilingFixtures = () => {
 // CONTROLADOR DEL JUGADOR
 // ============================================================================
 
-// Hook para el control del teclado WASD
+// Hook para el control del teclado WASD y táctil para móviles
 const usePlayerControls = () => {
   const keys = useRef({
     KeyW: false,
@@ -717,61 +717,160 @@ const usePlayerControls = () => {
   return keys;
 };
 
-// Controlador de movimiento del jugador
-const PlayerController = ({ floorY }: { floorY: number }) => {
-  const { camera, gl } = useThree();
-  const controlsRef = useRef<any>();
-  const playerVelocity = useRef(new THREE.Vector3());
-  const keys = usePlayerControls();
-
-  // Establecer posición inicial de la cámara
-  useEffect(() => {
-    camera.position.set(0, floorY + CAMERA_HEIGHT_ABOVE_FLOOR, 5);
-    camera.lookAt(0, floorY + CAMERA_HEIGHT_ABOVE_FLOOR, 0);
-    if (controlsRef.current) {
-      controlsRef.current.lock();
-      setTimeout(() => controlsRef.current.unlock(), 0);
-    }
-  }, [camera, floorY]);
-
-  useFrame((state, delta) => {
-    if (!controlsRef.current || !controlsRef.current.isLocked) {
-      playerVelocity.current.set(0, 0, 0);
-      return;
-    }
-
-    const speedDelta = delta * PLAYER_SPEED;
-    const moveDirection = new THREE.Vector3();
-
-    if (keys.current.KeyW) moveDirection.z = -1;
-    if (keys.current.KeyS) moveDirection.z = 1;
-    if (keys.current.KeyA) moveDirection.x = -1;
-    if (keys.current.KeyD) moveDirection.x = 1;
-
-    if (moveDirection.lengthSq() > 0) {
-      moveDirection.normalize();
-      moveDirection.applyQuaternion(camera.quaternion);
-
-      const newPosition = camera.position.clone();
-      newPosition.addScaledVector(moveDirection, speedDelta);
-
-      // Mantener altura fija y aplicar límites de colisión
-      newPosition.y = floorY + CAMERA_HEIGHT_ABOVE_FLOOR;
-      newPosition.x = Math.max(
-        ROOM_BOUNDS.minX,
-        Math.min(ROOM_BOUNDS.maxX, newPosition.x)
-      );
-      newPosition.z = Math.max(
-        ROOM_BOUNDS.minZ,
-        Math.min(ROOM_BOUNDS.maxZ, newPosition.z)
-      );
-
-      camera.position.copy(newPosition);
-    }
+// Componente de controles táctiles para móviles
+const TouchControls = ({
+  onMove,
+}: {
+  onMove: (direction: string, active: boolean) => void;
+}) => {
+  const [isMobile, setIsMobile] = useState(false);
+  const buttonRefs = useRef<{ [key: string]: HTMLDivElement | null }>({
+    forward: null,
+    backward: null,
+    left: null,
+    right: null,
   });
 
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768 || "ontouchstart" in window);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const handleTouchStart = (direction: string) => (event: TouchEvent) => {
+      event.preventDefault();
+      onMove(direction, true);
+    };
+
+    const handleTouchEnd = (direction: string) => (event: TouchEvent) => {
+      event.preventDefault();
+      onMove(direction, false);
+    };
+
+    // Agregar event listeners no pasivos para cada botón
+    Object.entries(buttonRefs.current).forEach(([direction, element]) => {
+      if (element) {
+        const touchStartHandler = handleTouchStart(direction);
+        const touchEndHandler = handleTouchEnd(direction);
+
+        // Agregar event listeners no pasivos
+        element.addEventListener("touchstart", touchStartHandler, {
+          passive: false,
+        });
+        element.addEventListener("touchend", touchEndHandler, {
+          passive: false,
+        });
+        element.addEventListener("touchcancel", touchEndHandler, {
+          passive: false,
+        });
+
+        // Almacenar handlers para cleanup
+        (element as any)._touchStartHandler = touchStartHandler;
+        (element as any)._touchEndHandler = touchEndHandler;
+      }
+    });
+
+    // Cleanup function
+    return () => {
+      Object.values(buttonRefs.current).forEach((element) => {
+        if (element) {
+          const touchStartHandler = (element as any)._touchStartHandler;
+          const touchEndHandler = (element as any)._touchEndHandler;
+
+          if (touchStartHandler && touchEndHandler) {
+            element.removeEventListener("touchstart", touchStartHandler);
+            element.removeEventListener("touchend", touchEndHandler);
+            element.removeEventListener("touchcancel", touchEndHandler);
+          }
+        }
+      });
+    };
+  }, [isMobile, onMove]);
+
+  if (!isMobile) return null;
+
+  const buttonStyle = {
+    position: "absolute" as const,
+    width: "60px",
+    height: "60px",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    border: "2px solid rgba(255, 255, 255, 0.5)",
+    borderRadius: "50%",
+    color: "white",
+    fontSize: "20px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    userSelect: "none" as const,
+    touchAction: "manipulation" as const,
+    zIndex: 1001,
+    cursor: "pointer",
+  };
+
   return (
-    <PointerLockControls ref={controlsRef} args={[camera, gl.domElement]} />
+    <>
+      {/* Botón hacia adelante */}
+      <div
+        ref={(el) => {
+          buttonRefs.current.forward = el;
+        }}
+        style={{
+          ...buttonStyle,
+          bottom: "140px",
+          right: "80px",
+        }}
+      >
+        ↑
+      </div>
+
+      {/* Botón hacia atrás */}
+      <div
+        ref={(el) => {
+          buttonRefs.current.backward = el;
+        }}
+        style={{
+          ...buttonStyle,
+          bottom: "70px",
+          right: "80px",
+        }}
+      >
+        ↓
+      </div>
+
+      {/* Botón hacia la izquierda */}
+      <div
+        ref={(el) => {
+          buttonRefs.current.left = el;
+        }}
+        style={{
+          ...buttonStyle,
+          bottom: "105px",
+          right: "145px",
+        }}
+      >
+        ←
+      </div>
+
+      {/* Botón hacia la derecha */}
+      <div
+        ref={(el) => {
+          buttonRefs.current.right = el;
+        }}
+        style={{
+          ...buttonStyle,
+          bottom: "105px",
+          right: "15px",
+        }}
+      >
+        →
+      </div>
+    </>
   );
 };
 
@@ -807,6 +906,7 @@ export default function Model3DViewerScene({
   ];
 
   const [isPointerLockActive, setIsPointerLockActive] = useState(false);
+  const touchControlsRef = useRef<any>();
 
   useEffect(() => {
     const handlePointerLockChange = () => {
@@ -835,6 +935,12 @@ export default function Model3DViewerScene({
     onBack();
   };
 
+  const handleTouchMove = (direction: string, active: boolean) => {
+    if (touchControlsRef.current) {
+      touchControlsRef.current(direction, active);
+    }
+  };
+
   return (
     <div
       style={{
@@ -852,7 +958,12 @@ export default function Model3DViewerScene({
 
       <Canvas shadows dpr={[1, 1.5]}>
         <PerspectiveCamera makeDefault fov={60} position={[0, 0, 0]} />
-        <PlayerController floorY={floorY} />
+        <PlayerControllerWithTouch
+          floorY={floorY}
+          onTouchControlsRef={(ref: any) => {
+            touchControlsRef.current = ref;
+          }}
+        />
 
         {/* Iluminación */}
         <GalleryLights />
@@ -900,7 +1011,7 @@ export default function Model3DViewerScene({
         Volver a la Galería
       </button>
 
-      {/* Panel de información - posicionado debajo del botón */}
+      {/* Panel de información - solo controles de navegación */}
       {!isPointerLockActive && (
         <div
           style={{
@@ -922,18 +1033,120 @@ export default function Model3DViewerScene({
             <strong>🎮 Controles de Navegación:</strong>
           </div>
           <div style={{ marginBottom: "12px" }}>
-            Haz clic en la escena para activar los controles. Usa WASD para
-            moverte y el mouse para mirar. Presiona ESC para liberar.
-          </div>
-          <div style={{ marginBottom: "12px" }}>
-            <strong>💡 Panel de Luces:</strong>
+            <strong>PC:</strong> Haz clic en la escena para activar los
+            controles. Usa WASD para moverte y el mouse para mirar. Presiona ESC
+            para liberar.
           </div>
           <div>
-            Usa el panel de la derecha para ajustar posición, intensidad y
-            ángulo de las lámparas en tiempo real.
+            <strong>Móvil:</strong> Usa los botones táctiles en la esquina
+            inferior derecha para moverte. Desliza el dedo en la pantalla para
+            mirar alrededor.
           </div>
         </div>
       )}
+
+      {/* Controles táctiles para móviles */}
+      <TouchControls onMove={handleTouchMove} />
     </div>
   );
 }
+
+// Componente PlayerController actualizado para recibir la referencia de controles táctiles
+const PlayerControllerWithTouch = ({
+  floorY,
+  onTouchControlsRef,
+}: {
+  floorY: number;
+  onTouchControlsRef: (ref: any) => void;
+}) => {
+  const { camera, gl } = useThree();
+  const controlsRef = useRef<any>();
+  const playerVelocity = useRef(new THREE.Vector3());
+  const keys = usePlayerControls();
+  const touchControls = useRef({
+    forward: false,
+    backward: false,
+    left: false,
+    right: false,
+  });
+
+  // Función para manejar controles táctiles
+  const handleTouchMove = (direction: string, active: boolean) => {
+    switch (direction) {
+      case "forward":
+        touchControls.current.forward = active;
+        break;
+      case "backward":
+        touchControls.current.backward = active;
+        break;
+      case "left":
+        touchControls.current.left = active;
+        break;
+      case "right":
+        touchControls.current.right = active;
+        break;
+    }
+  };
+
+  // Pasar la referencia de la función al componente padre
+  useEffect(() => {
+    onTouchControlsRef(handleTouchMove);
+  }, [onTouchControlsRef]);
+
+  // Establecer posición inicial de la cámara
+  useEffect(() => {
+    camera.position.set(0, floorY + CAMERA_HEIGHT_ABOVE_FLOOR, 5);
+    camera.lookAt(0, floorY + CAMERA_HEIGHT_ABOVE_FLOOR, 0);
+    if (controlsRef.current) {
+      controlsRef.current.lock();
+      setTimeout(() => controlsRef.current.unlock(), 0);
+    }
+  }, [camera, floorY]);
+
+  useFrame((state, delta) => {
+    if (!controlsRef.current || !controlsRef.current.isLocked) {
+      playerVelocity.current.set(0, 0, 0);
+      return;
+    }
+
+    const speedDelta = delta * PLAYER_SPEED;
+    const moveDirection = new THREE.Vector3();
+
+    // Controles de teclado
+    if (keys.current.KeyW) moveDirection.z = -1;
+    if (keys.current.KeyS) moveDirection.z = 1;
+    if (keys.current.KeyA) moveDirection.x = -1;
+    if (keys.current.KeyD) moveDirection.x = 1;
+
+    // Controles táctiles (móviles)
+    if (touchControls.current.forward) moveDirection.z = -1;
+    if (touchControls.current.backward) moveDirection.z = 1;
+    if (touchControls.current.left) moveDirection.x = -1;
+    if (touchControls.current.right) moveDirection.x = 1;
+
+    if (moveDirection.lengthSq() > 0) {
+      moveDirection.normalize();
+      moveDirection.applyQuaternion(camera.quaternion);
+
+      const newPosition = camera.position.clone();
+      newPosition.addScaledVector(moveDirection, speedDelta);
+
+      // Mantener altura fija y aplicar límites de colisión
+      newPosition.y = floorY + CAMERA_HEIGHT_ABOVE_FLOOR;
+      newPosition.x = Math.max(
+        ROOM_BOUNDS.minX,
+        Math.min(ROOM_BOUNDS.maxX, newPosition.x)
+      );
+      newPosition.z = Math.max(
+        ROOM_BOUNDS.minZ,
+        Math.min(ROOM_BOUNDS.maxZ, newPosition.z)
+      );
+
+      camera.position.copy(newPosition);
+    }
+  });
+
+  return (
+    <PointerLockControls ref={controlsRef} args={[camera, gl.domElement]} />
+  );
+};
