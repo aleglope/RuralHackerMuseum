@@ -9,12 +9,12 @@ import { preloadModels } from "./GenericModel3D";
 
 export function ModelPreloader() {
   useEffect(() => {
-    // Precargar todos los modelos al montar el componente
+    // Preload all models when component mounts
     preloadModels(ALL_MODEL_PATHS);
 
     console.log(`Preloading ${ALL_MODEL_PATHS.length} 3D models...`);
   }, []);
 
-  // Este componente no renderiza nada, solo maneja la precarga
+  // This component renders nothing, only handles preloading
   return null;
 }

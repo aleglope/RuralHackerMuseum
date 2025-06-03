@@ -30,7 +30,7 @@ export function PlantExterior(props: GroupProps) {
   );
 }
 
-// Componente genérico que acepta el tipo de planta
+// Generic component that accepts plant type
 interface PlantProps extends GroupProps {
   plantType: keyof typeof MODEL_PATHS.PLANTS;
 }

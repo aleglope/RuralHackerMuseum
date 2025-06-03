@@ -25,7 +25,7 @@ export function GenericModel3D({
   );
 }
 
-// Función helper para precargar múltiples modelos
+// Helper function to preload multiple models
 export const preloadModels = (modelPaths: string[]) => {
   modelPaths.forEach((path) => useGLTF.preload(path));
 };

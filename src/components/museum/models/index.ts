@@ -1,10 +1,10 @@
 // Centralized exports for museum model components
 
-// Plantas
+// Plants
 export { Plant1, Plant2, Plant3, Plant4, PlantExterior, Plant } from "./Plants";
 
-// Lámparas
+// Lamps
 export { CeilingLamp, CeilingLamp2, Lamp } from "./Lamps";
 
-// Arquitectura
+// Architecture
 export { Window } from "./Window";

@@ -18,7 +18,7 @@ export function CeilingLamp2(props: GroupProps) {
   return <GenericModel3D modelPath={MODEL_PATHS.LAMPS.CEILING_2} {...props} />;
 }
 
-// Componente genérico que acepta el tipo de lámpara
+// Generic component that accepts lamp type
 interface LampProps extends GroupProps {
   lampType: keyof typeof MODEL_PATHS.LAMPS;
 }

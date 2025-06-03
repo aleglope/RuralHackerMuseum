@@ -1,16 +1,15 @@
 import { GroupProps } from "@react-three/fiber";
 
-// Tipos básicos para posicionamiento 3D
+// Basic types for 3D positioning
 export type Vector3Tuple = [number, number, number];
 
-// Props compartidas para componentes de modelos 3D
+// Shared props for 3D model components
 export interface Model3DProps extends GroupProps {
-  modelPath: string;
-  castShadow?: boolean;
-  receiveShadow?: boolean;
+  modelType?: string;
+  scale?: number | Vector3Tuple;
 }
 
-// Configuración de luces
+// Light configuration
 export interface LightConfig {
   position: Vector3Tuple;
   intensity: number;
@@ -21,7 +20,7 @@ export interface LightConfig {
   distance?: number;
 }
 
-// Configuración de escena 3D
+// 3D scene configuration
 export interface SceneConfig {
   floorY: number;
   roomBounds: {
@@ -35,7 +34,9 @@ export interface SceneConfig {
   playerRadius: number;
 }
 
-// Props para componentes del museo
-export interface MuseumItemProps extends GroupProps {
-  floorY?: number;
+// Props for museum components
+export interface MuseumComponentProps extends GroupProps {
+  position?: Vector3Tuple;
+  rotation?: Vector3Tuple;
+  scale?: number | Vector3Tuple;
 }

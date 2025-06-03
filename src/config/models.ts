@@ -1,6 +1,6 @@
-// Configuración centralizada de modelos 3D
+// Centralized 3D models configuration
 export const MODEL_PATHS = {
-  // Plantas
+  // Plants
   PLANTS: {
     PLANT_1: "/models/planta1.glb",
     PLANT_2: "/models/planta2.glb",
@@ -9,30 +9,30 @@ export const MODEL_PATHS = {
     PLANT_EXTERIOR: "/models/planta_exterior.glb",
   },
 
-  // Lámparas
+  // Lamps
   LAMPS: {
     CEILING_MOON: "/models/lampara_de_techo_moon_metal_negro.glb",
     CEILING_2: "/models/lampara_2.glb",
   },
 
-  // Mobiliario
+  // Furniture
   FURNITURE: {
     METAL_BENCH: "/models/metal_bench.glb",
     PEDESTAL: "/models/pedestal.gltf",
   },
 
-  // Arquitectura
+  // Architecture
   ARCHITECTURE: {
     WINDOW: "/models/window.glb",
   },
 
-  // Modelo principal
+  // Main model
   MAIN: {
     ANCEU: "/models/Anceu-Coliving-30-5-2025-textured_model.glb",
   },
 } as const;
 
-// Lista de todos los modelos para precargar
+// List of all models for preloading
 export const ALL_MODEL_PATHS = Object.values(MODEL_PATHS).flatMap((category) =>
   Object.values(category)
 );

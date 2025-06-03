@@ -113,7 +113,7 @@ const Frame = forwardRef<THREE.Mesh, FrameProps>(
                   anchorY="middle"
                   font="Times New Roman"
                 >
-                  Imagen no disponible
+                  Image not available
                 </Text>
               </meshBasicMaterial>
             ) : (

@@ -1,11 +1,11 @@
 import { SceneConfig } from "../types/three";
 
-// Configuración principal de la escena del museo
+// Main museum scene configuration
 export const MUSEUM_SCENE_CONFIG: SceneConfig = {
   floorY: -1.5,
-  cameraHeight: 1.7, // Altura de la cámara, simulando altura de ojos
-  playerSpeed: 5.0, // Velocidad de movimiento del jugador
-  playerRadius: 0.5, // Radio aproximado del jugador para colisiones básicas
+  cameraHeight: 1.7, // Camera height, simulating eye level
+  playerSpeed: 5.0, // Player movement speed
+  playerRadius: 0.5, // Approximate player radius for basic collisions
   roomBounds: {
     minX: -10 + 0.5, // -10 + playerRadius
     maxX: 10 - 0.5, // 10 - playerRadius
@@ -14,14 +14,14 @@ export const MUSEUM_SCENE_CONFIG: SceneConfig = {
   },
 };
 
-// Configuración del pedestal
+// Pedestal configuration
 export const PEDESTAL_CONFIG = {
   scale: 0.6,
   baseOffset: 0.05,
-  estimatedHeight: 1.3172, // Se multiplica por scale para altura real
+  estimatedHeight: 1.3172, // Multiplied by scale for real height
 };
 
-// Rutas de texturas
+// Texture paths
 export const TEXTURE_PATHS = {
   ROCK_WALL: {
     base: "/textures/rock-wall-mortar-ue/",

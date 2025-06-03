@@ -1,6 +1,6 @@
 /*
 Window Component
-Componente para cargar y mostrar el modelo de ventana GLB con vidrio translúcido
+Component for loading and displaying the GLB window model with translucent glass
 */
 
 import React, { useEffect } from "react";
@@ -9,29 +9,29 @@ import { MODEL_PATHS } from "../../../config/models";
 import { GroupProps } from "@react-three/fiber";
 import * as THREE from "three";
 
-// Componente de ventana con vidrio translúcido
+// Window component with translucent glass
 export function Window(props: GroupProps) {
   const gltf = useGLTF(MODEL_PATHS.ARCHITECTURE.WINDOW);
 
-  // Valores fijos para la transparencia del vidrio
+  // Fixed values for glass transparency
   const glassOpacity = 0.25;
   const glassColor = "#87CEEB";
   const glassReflectivity = 0.8;
   const glassRoughness = 0.1;
 
-  // Efecto para modificar los materiales del modelo
+  // Effect to modify model materials
   useEffect(() => {
     if (gltf.scene) {
       const clonedScene = gltf.scene.clone();
 
-      // Recorrer todos los meshes del modelo
+      // Traverse all meshes in the model
       clonedScene.traverse((child) => {
         if (child instanceof THREE.Mesh && child.material) {
-          // Identificar el vidrio por nombre del material o mesh
+          // Identify glass by material or mesh name
           const meshName = child.name.toLowerCase();
           const materialName = child.material.name?.toLowerCase() || "";
 
-          // Buscar elementos que contengan palabras relacionadas con vidrio/cristal
+          // Search for elements containing glass/crystal related words
           const isGlass =
             meshName.includes("glass") ||
             meshName.includes("vidrio") ||
@@ -43,9 +43,9 @@ export function Window(props: GroupProps) {
             materialName.includes("transparent");
 
           if (isGlass) {
-            // Crear material translúcido para el vidrio
+            // Create translucent material for glass
             if (Array.isArray(child.material)) {
-              // Si es un array de materiales
+              // If it's an array of materials
               child.material = child.material.map((mat) => {
                 const glassMaterial = new THREE.MeshPhysicalMaterial({
                   color: glassColor,
@@ -56,13 +56,13 @@ export function Window(props: GroupProps) {
                   envMapIntensity: 1.5,
                   clearcoat: 0.8,
                   clearcoatRoughness: 0.1,
-                  transmission: Math.max(0, 1 - glassOpacity), // Transmisión inversa a la opacidad
+                  transmission: Math.max(0, 1 - glassOpacity), // Transmission inverse to opacity
                   thickness: 0.1,
                 });
                 return glassMaterial;
               });
             } else {
-              // Material único
+              // Single material
               child.material = new THREE.MeshPhysicalMaterial({
                 color: glassColor,
                 transparent: true,
@@ -77,7 +77,7 @@ export function Window(props: GroupProps) {
               });
             }
           } else {
-            // Para elementos que no son vidrio, mantener las propiedades originales pero mejorar sombras
+            // For non-glass elements, maintain original properties but improve shadows
             if (Array.isArray(child.material)) {
               child.material = child.material.map((mat) => {
                 const clonedMat = mat.clone();
@@ -88,13 +88,13 @@ export function Window(props: GroupProps) {
             }
           }
 
-          // Habilitar sombras
+          // Enable shadows
           child.castShadow = true;
           child.receiveShadow = true;
         }
       });
 
-      // Actualizar la referencia del scene
+      // Update scene reference
       gltf.scene = clonedScene;
     }
   }, [gltf.scene, glassOpacity, glassColor, glassReflectivity, glassRoughness]);

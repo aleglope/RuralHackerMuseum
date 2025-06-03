@@ -992,7 +992,7 @@ export default function Model3DViewerScene({
         </React.Suspense>
       </Canvas>
 
-      {/* Botón de retorno */}
+      {/* Back button */}
       <button
         onClick={handleBack}
         style={{
@@ -1008,10 +1008,10 @@ export default function Model3DViewerScene({
           zIndex: 1000,
         }}
       >
-        Volver a la Galería
+        Back to Gallery
       </button>
 
-      {/* Panel de información - solo controles de navegación */}
+      {/* Information panel - navigation controls only */}
       {!isPointerLockActive && (
         <div
           style={{
@@ -1030,22 +1030,20 @@ export default function Model3DViewerScene({
           }}
         >
           <div style={{ marginBottom: "12px" }}>
-            <strong>🎮 Controles de Navegación:</strong>
+            <strong>🎮 Navigation Controls:</strong>
           </div>
           <div style={{ marginBottom: "12px" }}>
-            <strong>PC:</strong> Haz clic en la escena para activar los
-            controles. Usa WASD para moverte y el mouse para mirar. Presiona ESC
-            para liberar.
+            <strong>PC:</strong> Click on the scene to activate controls. Use
+            WASD to move and mouse to look around. Press ESC to release.
           </div>
           <div>
-            <strong>Móvil:</strong> Usa los botones táctiles en la esquina
-            inferior derecha para moverte. Desliza el dedo en la pantalla para
-            mirar alrededor.
+            <strong>Mobile:</strong> Use the touch buttons in the bottom right
+            corner to move. Swipe on the screen to look around.
           </div>
         </div>
       )}
 
-      {/* Controles táctiles para móviles */}
+      {/* Touch controls for mobile */}
       <TouchControls onMove={handleTouchMove} />
     </div>
   );
