@@ -8,6 +8,7 @@ import {
   Html,
   useHelper,
 } from "@react-three/drei";
+import { useControls } from "leva";
 import Model3DComponent from "./Model3DComponent";
 import { PedestalModel } from "./PedestalModel";
 import { MetalBench } from "../museum/Bench";
@@ -19,6 +20,7 @@ import {
   Plant3,
   Plant4,
   Window,
+  WindowView,
 } from "../museum/models";
 import { ModelPreloader } from "../shared/ModelPreloader";
 import {
@@ -45,7 +47,7 @@ const {
 // ============================================================================
 
 // Componente del suelo de la galería con texturas de bambú
-const Floor = () => {
+const Floor = ({ floorSize }: { floorSize: number }) => {
   // Usando la textura de bambú con brillo que estaba en el techo
   const texturePathBase =
     "/textures/rock-wall-mortar-ue/bamboo-wood-semigloss-bl/";
@@ -76,13 +78,13 @@ const Floor = () => {
       if (map) {
         map.wrapS = THREE.RepeatWrapping;
         map.wrapT = THREE.RepeatWrapping;
-        map.repeat.set(12, 12); // Aumentado para mejor detalle en el suelo
+        map.repeat.set(floorSize * 0.24, floorSize * 0.24); // Mantener densidad proporcional
         map.minFilter = THREE.LinearMipmapLinearFilter;
         map.magFilter = THREE.LinearFilter;
         map.needsUpdate = true;
       }
     });
-  }, [albedoMap, normalMap, aoMap]);
+  }, [albedoMap, normalMap, aoMap, floorSize]);
 
   return (
     <mesh
@@ -90,7 +92,7 @@ const Floor = () => {
       position={[0, floorY, 0]}
       receiveShadow
     >
-      <planeGeometry args={[50, 50]} />
+      <planeGeometry args={[floorSize, floorSize]} />
       <meshStandardMaterial
         map={albedoMap}
         normalMap={normalMap}
@@ -330,6 +332,9 @@ const GalleryWalls = ({ floorY }: { floorY: number }) => {
         scale={[windowScale, windowScale, windowScale]}
       />
 
+      {/* Vista exterior a través de la ventana */}
+      <WindowView />
+
       {/* Pared derecha */}
       <mesh
         position={[10, 2.5, 0]}
@@ -381,7 +386,7 @@ const GalleryWalls = ({ floorY }: { floorY: number }) => {
 };
 
 // Componente del techo con textura de bambú sin brillo
-const Ceiling = () => {
+const Ceiling = ({ ceilingSize }: { ceilingSize: number }) => {
   // Usando la misma textura de bambú que el suelo pero sin brillo
   const texturePathBase =
     "/textures/rock-wall-mortar-ue/bamboo-wood-semigloss-bl/";
@@ -412,15 +417,15 @@ const Ceiling = () => {
       if (map) {
         map.wrapS = THREE.RepeatWrapping;
         map.wrapT = THREE.RepeatWrapping;
-        map.repeat.set(8, 8); // Ajustado para el techo
+        map.repeat.set(ceilingSize * 0.16, ceilingSize * 0.16); // Mantener densidad proporcional
         map.needsUpdate = true;
       }
     });
-  }, [albedoMap, normalMap, aoMap]);
+  }, [albedoMap, normalMap, aoMap, ceilingSize]);
 
   return (
     <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 7.5, 0]} receiveShadow>
-      <planeGeometry args={[50, 50]} />
+      <planeGeometry args={[ceilingSize, ceilingSize]} />
       <meshStandardMaterial
         map={albedoMap}
         normalMap={normalMap}
@@ -694,6 +699,8 @@ const usePlayerControls = () => {
     KeyA: false,
     KeyS: false,
     KeyD: false,
+    KeyQ: false, // Para bajar en cámara libre
+    KeyE: false, // Para subir en cámara libre
   });
 
   useEffect(() => {
@@ -1012,6 +1019,30 @@ export default function Model3DViewerScene({
     0,
   ];
 
+  // Controles Leva para cámara libre
+  const { freeCameraMode, cameraSpeed } = useControls("Camera Controls", {
+    freeCameraMode: { value: false, label: "Cámara Libre" },
+    cameraSpeed: {
+      value: 5,
+      min: 1,
+      max: 20,
+      step: 0.5,
+      label: "Velocidad Cámara",
+    },
+  });
+
+  // Controles Leva para el tamaño del suelo y techo
+  const { floorSize, ceilingSize } = useControls("Scene Size", {
+    floorSize: { value: 20, min: 20, max: 200, step: 5, label: "Tamaño Suelo" },
+    ceilingSize: {
+      value: 20,
+      min: 20,
+      max: 200,
+      step: 5,
+      label: "Tamaño Techo",
+    },
+  });
+
   const [isPointerLockActive, setIsPointerLockActive] = useState(false);
   const touchControlsRef = useRef<any>();
   const isMobile = useIsMobile();
@@ -1074,6 +1105,8 @@ export default function Model3DViewerScene({
         <PerspectiveCamera makeDefault fov={60} position={[0, 0, 0]} />
         <PlayerControllerWithTouch
           floorY={floorY}
+          freeCameraMode={freeCameraMode}
+          cameraSpeed={cameraSpeed}
           onTouchControlsRef={(ref: any) => {
             touchControlsRef.current = ref;
           }}
@@ -1084,8 +1117,8 @@ export default function Model3DViewerScene({
 
         {/* Estructura de la galería */}
         <GalleryWalls floorY={floorY} />
-        <Floor />
-        <Ceiling />
+        <Floor floorSize={floorSize} />
+        <Ceiling ceilingSize={ceilingSize} />
 
         {/* Modelo principal con pedestal */}
         <PedestalModel
@@ -1152,6 +1185,12 @@ export default function Model3DViewerScene({
                 <strong>PC:</strong> Click on the scene to activate controls.
                 Use WASD to move and mouse to look around. Press ESC to release.
               </div>
+              {freeCameraMode && (
+                <div style={{ marginBottom: "12px", color: "#90EE90" }}>
+                  <strong>🚁 Cámara Libre:</strong> Q/E para bajar/subir. Sin
+                  límites de movimiento.
+                </div>
+              )}
             </>
           ) : (
             <div>
@@ -1171,9 +1210,13 @@ export default function Model3DViewerScene({
 // Componente PlayerController actualizado para distinguir entre PC y móvil
 const PlayerControllerWithTouch = ({
   floorY,
+  freeCameraMode,
+  cameraSpeed,
   onTouchControlsRef,
 }: {
   floorY: number;
+  freeCameraMode: boolean;
+  cameraSpeed: number;
   onTouchControlsRef: (ref: any) => void;
 }) => {
   const { camera, gl } = useThree();
@@ -1233,7 +1276,8 @@ const PlayerControllerWithTouch = ({
       }
     }
 
-    const speedDelta = delta * PLAYER_SPEED;
+    // Usar velocidad personalizada si está en modo cámara libre
+    const speedDelta = delta * (freeCameraMode ? cameraSpeed : PLAYER_SPEED);
     const moveDirection = new THREE.Vector3();
 
     // Controles de teclado (PC)
@@ -1242,6 +1286,12 @@ const PlayerControllerWithTouch = ({
       if (keys.current.KeyS) moveDirection.z = 1;
       if (keys.current.KeyA) moveDirection.x = -1;
       if (keys.current.KeyD) moveDirection.x = 1;
+
+      // Controles de altura para cámara libre
+      if (freeCameraMode) {
+        if (keys.current.KeyQ) moveDirection.y = -1; // Bajar
+        if (keys.current.KeyE) moveDirection.y = 1; // Subir
+      }
     }
 
     // Controles táctiles (móviles)
@@ -1259,18 +1309,22 @@ const PlayerControllerWithTouch = ({
       const newPosition = camera.position.clone();
       newPosition.addScaledVector(moveDirection, speedDelta);
 
-      // Mantener altura fija y aplicar límites de colisión
-      newPosition.y = floorY + CAMERA_HEIGHT_ABOVE_FLOOR;
-      newPosition.x = Math.max(
-        ROOM_BOUNDS.minX,
-        Math.min(ROOM_BOUNDS.maxX, newPosition.x)
-      );
-      newPosition.z = Math.max(
-        ROOM_BOUNDS.minZ,
-        Math.min(ROOM_BOUNDS.maxZ, newPosition.z)
-      );
-
-      camera.position.copy(newPosition);
+      if (freeCameraMode) {
+        // Modo cámara libre: sin restricciones de altura ni límites de habitación
+        camera.position.copy(newPosition);
+      } else {
+        // Modo normal: mantener altura fija y aplicar límites de colisión
+        newPosition.y = floorY + CAMERA_HEIGHT_ABOVE_FLOOR;
+        newPosition.x = Math.max(
+          ROOM_BOUNDS.minX,
+          Math.min(ROOM_BOUNDS.maxX, newPosition.x)
+        );
+        newPosition.z = Math.max(
+          ROOM_BOUNDS.minZ,
+          Math.min(ROOM_BOUNDS.maxZ, newPosition.z)
+        );
+        camera.position.copy(newPosition);
+      }
     }
   });
 
