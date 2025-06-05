@@ -1,16 +1,16 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
   PointerLockControls,
   Environment,
   PerspectiveCamera,
   useTexture,
-  Html,
-  useHelper,
+  Preload,
+  useProgress,
 } from "@react-three/drei";
 import { useControls } from "leva";
 import Model3DComponent from "./Model3DComponent";
-import { PedestalModel } from "./PedestalModel";
+
 import { MetalBench } from "../museum/Bench";
 import {
   CeilingLamp,
@@ -29,10 +29,9 @@ import {
   TEXTURE_PATHS,
 } from "../../config/scene";
 import * as THREE from "three";
+import { BlackHoleLoader } from "./BlackHoleLoader";
 
-// ============================================================================
-// CONFIGURACIÓN Y CONSTANTES
-// ============================================================================
+// Configuration and constants
 
 const {
   floorY,
@@ -42,13 +41,126 @@ const {
   roomBounds: ROOM_BOUNDS,
 } = MUSEUM_SCENE_CONFIG;
 
-// ============================================================================
-// COMPONENTES DE LA GALERÍA - ESTRUCTURA
-// ============================================================================
+// Simple fallback for Suspense (Three.js compatible)
+const EmptyFallback = ({ onLoaded }: { onLoaded: () => void }) => {
+  React.useEffect(() => {
+    return () => {
+      onLoaded();
+    };
+  }, [onLoaded]);
 
-// Componente del suelo de la galería con texturas de bambú
+  return null;
+};
+
+// Custom hook for smooth artificial progress
+const useSmoothProgress = (startLoading: boolean, onComplete: () => void) => {
+  const [artificialProgress, setArtificialProgress] = useState(0);
+  const [realProgress, setRealProgress] = useState(0);
+  const [phase, setPhase] = useState<"artificial" | "real">("artificial");
+  const animationFrameRef = useRef<number>();
+  const startTimeRef = useRef<number>();
+  const hasCalledComplete = useRef(false);
+
+  // Smooth artificial animation using requestAnimationFrame
+  useEffect(() => {
+    if (!startLoading) return;
+
+    const animate = (currentTime: number) => {
+      if (!startTimeRef.current) {
+        startTimeRef.current = currentTime;
+      }
+
+      const elapsed = currentTime - startTimeRef.current;
+
+      // Small initial delay to allow CSS/DOM to stabilize
+      if (elapsed < 100) {
+        setArtificialProgress(0);
+        animationFrameRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      // Adjust time for initial delay
+      const adjustedElapsed = elapsed - 100;
+      const duration = 3400; // 3.4 seconds for better perception
+      const progress = Math.min(95, (adjustedElapsed / duration) * 95);
+
+      // Use smoother easing curve at start
+      const normalizedProgress = progress / 95;
+      const easedProgress = easeInOutCubic(normalizedProgress) * 95;
+
+      setArtificialProgress(easedProgress);
+
+      if (easedProgress < 95) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+      } else {
+        // Switch to real phase when reaching 95%
+        setPhase("real");
+        if (!hasCalledComplete.current) {
+          hasCalledComplete.current = true;
+          onComplete();
+        }
+      }
+    };
+
+    animationFrameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [startLoading, onComplete]);
+
+  // Improved easing function for smoothness
+  const easeInOutCubic = (t: number) => {
+    if (t < 0.5) {
+      return 4 * t * t * t;
+    }
+    return 1 - Math.pow(-2 * t + 2, 3) / 2;
+  };
+
+  return {
+    progress:
+      phase === "artificial" ? artificialProgress : Math.max(95, realProgress),
+    phase,
+    setRealProgress,
+  };
+};
+
+// Separate component to handle real loading progress
+const LoadingProgressTracker = ({
+  onRealProgressUpdate,
+  enabled,
+}: {
+  onRealProgressUpdate: (
+    progress: number,
+    loaded: number,
+    total: number
+  ) => void;
+  enabled: boolean;
+}) => {
+  const { progress, loaded, total, errors } = useProgress();
+
+  React.useEffect(() => {
+    if (enabled) {
+      // Map real progress to 95-100% range
+      const mappedProgress = 95 + progress * 0.05;
+      onRealProgressUpdate(mappedProgress, loaded, total);
+    }
+  }, [progress, loaded, total, onRealProgressUpdate, enabled]);
+
+  React.useEffect(() => {
+    // Asset loading error handling
+  }, [errors]);
+
+  return null;
+};
+
+// Gallery components - structure
+
+// Gallery floor component with bamboo textures
 const Floor = ({ floorSize }: { floorSize: number }) => {
-  // Usando la textura de bambú con brillo que estaba en el techo
+  // Using bamboo texture with gloss
   const texturePathBase =
     "/textures/rock-wall-mortar-ue/bamboo-wood-semigloss-bl/";
   const [albedoMap, normalMap, aoMap] = useTexture([
@@ -57,28 +169,12 @@ const Floor = ({ floorSize }: { floorSize: number }) => {
     `${texturePathBase}bamboo-wood-semigloss-ao.png`,
   ]);
 
-  // Textura de piedra original del suelo (comentada)
-  /*
-  const { base, albedo, normal, roughness, metallic, ao, height } =
-    TEXTURE_PATHS.ROCK_WALL;
-
-  const [albedoMap, normalMap, roughnessMap, metallicMap, aoMap, heightMap] =
-    useTexture([
-      `${base}${albedo}`,
-      `${base}${normal}`,
-      `${base}${roughness}`,
-      `${base}${metallic}`,
-      `${base}${ao}`,
-      `${base}${height}`,
-    ]);
-  */
-
   React.useEffect(() => {
     [albedoMap, normalMap, aoMap].forEach((map) => {
       if (map) {
         map.wrapS = THREE.RepeatWrapping;
         map.wrapT = THREE.RepeatWrapping;
-        map.repeat.set(floorSize * 0.24, floorSize * 0.24); // Mantener densidad proporcional
+        map.repeat.set(floorSize * 0.24, floorSize * 0.24);
         map.minFilter = THREE.LinearMipmapLinearFilter;
         map.magFilter = THREE.LinearFilter;
         map.needsUpdate = true;
@@ -97,7 +193,7 @@ const Floor = ({ floorSize }: { floorSize: number }) => {
         map={albedoMap}
         normalMap={normalMap}
         aoMap={aoMap}
-        roughness={0.3} // Menos rugoso para más brillo
+        roughness={0.3}
         metalness={0.0}
         displacementScale={0.01}
         normalScale={new THREE.Vector2(0.3, 0.3)}
@@ -106,9 +202,8 @@ const Floor = ({ floorSize }: { floorSize: number }) => {
   );
 };
 
-// Componente de las paredes de la galería
+// Gallery walls component
 const GalleryWalls = ({ floorY }: { floorY: number }) => {
-  // Usando la textura de piedra completa que estaba en el techo
   const { base, albedo, normal, roughness, metallic, ao, height } =
     TEXTURE_PATHS.ROCK_WALL;
 
@@ -122,7 +217,7 @@ const GalleryWalls = ({ floorY }: { floorY: number }) => {
       `${base}${height}`,
     ]);
 
-  // Valores fijos para la ventana
+  // Window configuration
   const windowX = -9.8;
   const windowY = -0.3;
   const windowZ = -8.5;
@@ -131,7 +226,7 @@ const GalleryWalls = ({ floorY }: { floorY: number }) => {
   const windowWidth = 2.5;
   const windowHeight = 2.0;
 
-  // Valores fijos para las secciones de pared
+  // Wall sections configuration
   const upperSectionOffsetY = -0.9;
   const upperSectionWidth = 3.1;
   const upperSectionHeight = 1;
@@ -140,15 +235,13 @@ const GalleryWalls = ({ floorY }: { floorY: number }) => {
   const rightSectionVisible = true;
   const upperSectionVisible = true;
 
-  // Valores fijos definitivos para la pared central (posición y dimensiones exactas)
+  // Central wall configuration
   const centralWallX = 0.1;
   const centralWallY = 2.9;
-  const centralWallZ = -0.4; // Valor exacto para evitar interferencia con el modelo
+  const centralWallZ = -0.4;
   const centralWallWidth = 10;
   const centralWallHeight = 9.2;
-  const centralWallDepth = 0.3; // Grosor de la pared para darle volumen
-
-  // Material estándar para paredes (con textura completa de piedra)
+  const centralWallDepth = 0.3;
   const wallMaterial = (
     <meshStandardMaterial
       map={albedoMap}
@@ -164,34 +257,28 @@ const GalleryWalls = ({ floorY }: { floorY: number }) => {
     />
   );
 
-  // Valores fijos para la estructura de la pared (no cambiarán)
   const wallHeight = 10;
   const wallLength = 20;
   const wallCenterY = 2.5;
   const wallZ = 0;
-  const wallBottom = wallCenterY - wallHeight / 2; // -2.5
-  const wallTop = wallCenterY + wallHeight / 2; // 7.5
+  const wallBottom = wallCenterY - wallHeight / 2;
+  const wallTop = wallCenterY + wallHeight / 2;
 
-  // Posición fija de la ventana (basada en valores que funcionan)
   const windowCenterZ = windowZ;
   const windowBottom = windowY;
   const windowTop = windowY + windowHeight;
   const windowLeft = windowCenterZ - windowWidth / 2;
   const windowRight = windowCenterZ + windowWidth / 2;
 
-  // Coordenadas fijas de la pared
   const wallStartZ = -10;
   const wallEndZ = 10;
 
-  // Cálculos fijos de las secciones
   const leftSectionLength = Math.max(0, windowLeft - wallStartZ);
   const rightSectionLength = Math.max(0, wallEndZ - windowRight);
   const bottomSectionHeight = Math.max(0, windowBottom - wallBottom);
   const topSectionHeight = Math.max(0, wallTop - windowTop);
 
-  // Material específico para la sección superior (evita estiramiento)
   const upperSectionMaterial = React.useMemo(() => {
-    // Crear texturas clonadas para la sección superior
     const upperAlbedo = albedoMap?.clone();
     const upperNormal = normalMap?.clone();
     const upperRoughness = roughnessMap?.clone();
@@ -199,7 +286,6 @@ const GalleryWalls = ({ floorY }: { floorY: number }) => {
     const upperAo = aoMap?.clone();
     const upperHeight = heightMap?.clone();
 
-    // Calcular repeat proporcional pero ajustado para consistencia
     [
       upperAlbedo,
       upperNormal,
@@ -211,15 +297,13 @@ const GalleryWalls = ({ floorY }: { floorY: number }) => {
       if (map) {
         map.wrapS = THREE.RepeatWrapping;
         map.wrapT = THREE.RepeatWrapping;
-        // Calcular repeat proporcional al tamaño real para evitar estiramiento
         const sectionWidth = upperSectionWidth;
         const sectionHeight = topSectionHeight + upperSectionHeight;
 
-        // Usar el mismo factor de escala que las paredes estándar
-        const baseRepeatX = 4; // Repeat base de las paredes
-        const baseRepeatY = 2; // Repeat base de las paredes
-        const standardWidth = 20; // Ancho estándar de pared
-        const standardHeight = 10; // Alto estándar de pared
+        const baseRepeatX = 4;
+        const baseRepeatY = 2;
+        const standardWidth = 20;
+        const standardHeight = 10;
 
         const repeatX = Math.max(
           0.5,
@@ -278,15 +362,12 @@ const GalleryWalls = ({ floorY }: { floorY: number }) => {
 
   return (
     <group>
-      {/* Pared trasera */}
       <mesh position={[0, 2.5, -10]} receiveShadow castShadow>
         <planeGeometry args={[20, 10]} />
         {wallMaterial}
       </mesh>
 
-      {/* Pared izquierda con hueco para ventana */}
       <group>
-        {/* Sección superior de la pared izquierda (encima de la ventana) */}
         {upperSectionVisible && topSectionHeight > 0.05 && (
           <mesh
             position={[
@@ -307,7 +388,6 @@ const GalleryWalls = ({ floorY }: { floorY: number }) => {
           </mesh>
         )}
 
-        {/* Sección derecha de la pared (después de la ventana) */}
         {rightSectionVisible && rightSectionLength > 0.05 && (
           <mesh
             position={[
@@ -325,17 +405,14 @@ const GalleryWalls = ({ floorY }: { floorY: number }) => {
         )}
       </group>
 
-      {/* Ventana en pared izquierda (posición fija) */}
       <Window
         position={[windowX, windowY, windowZ]}
         rotation={[0, windowRotationY, 0]}
         scale={[windowScale, windowScale, windowScale]}
       />
 
-      {/* Vista exterior a través de la ventana */}
       <WindowView />
 
-      {/* Pared derecha */}
       <mesh
         position={[10, 2.5, 0]}
         rotation={[0, -Math.PI / 2, 0]}
@@ -346,7 +423,6 @@ const GalleryWalls = ({ floorY }: { floorY: number }) => {
         {wallMaterial}
       </mesh>
 
-      {/* Pared frontal */}
       <mesh
         position={[0, 2.5, 10]}
         rotation={[0, Math.PI, 0]}
@@ -357,7 +433,6 @@ const GalleryWalls = ({ floorY }: { floorY: number }) => {
         {wallMaterial}
       </mesh>
 
-      {/* Pared central detrás del modelo principal - CON GROSOR Y TEXTURA EN AMBAS CARAS */}
       <mesh
         position={[centralWallX, centralWallY, centralWallZ]}
         rotation={[0, 0, 0]}
@@ -378,16 +453,15 @@ const GalleryWalls = ({ floorY }: { floorY: number }) => {
           normalScale={new THREE.Vector2(0.5, 0.5)}
           transparent={false}
           alphaTest={0.1}
-          side={THREE.DoubleSide} // Renderizar ambas caras
+          side={THREE.DoubleSide}
         />
       </mesh>
     </group>
   );
 };
 
-// Componente del techo con textura de bambú sin brillo
+// Ceiling component with bamboo texture
 const Ceiling = ({ ceilingSize }: { ceilingSize: number }) => {
-  // Usando la misma textura de bambú que el suelo pero sin brillo
   const texturePathBase =
     "/textures/rock-wall-mortar-ue/bamboo-wood-semigloss-bl/";
   const [albedoMap, normalMap, aoMap] = useTexture([
@@ -396,28 +470,12 @@ const Ceiling = ({ ceilingSize }: { ceilingSize: number }) => {
     `${texturePathBase}bamboo-wood-semigloss-ao.png`,
   ]);
 
-  // Textura de piedra anterior (comentada)
-  /*
-  const { base, albedo, normal, roughness, metallic, ao, height } =
-    TEXTURE_PATHS.ROCK_WALL;
-
-  const [albedoMap, normalMap, roughnessMap, metallicMap, aoMap, heightMap] =
-    useTexture([
-      `${base}${albedo}`,
-      `${base}${normal}`,
-      `${base}${roughness}`,
-      `${base}${metallic}`,
-      `${base}${ao}`,
-      `${base}${height}`,
-    ]);
-  */
-
   React.useEffect(() => {
     [albedoMap, normalMap, aoMap].forEach((map) => {
       if (map) {
         map.wrapS = THREE.RepeatWrapping;
         map.wrapT = THREE.RepeatWrapping;
-        map.repeat.set(ceilingSize * 0.16, ceilingSize * 0.16); // Mantener densidad proporcional
+        map.repeat.set(ceilingSize * 0.16, ceilingSize * 0.16);
         map.needsUpdate = true;
       }
     });
@@ -430,7 +488,7 @@ const Ceiling = ({ ceilingSize }: { ceilingSize: number }) => {
         map={albedoMap}
         normalMap={normalMap}
         aoMap={aoMap}
-        roughness={0.9} // Muy rugoso para eliminar el brillo
+        roughness={0.9}
         metalness={0.0}
         side={THREE.DoubleSide}
       />
@@ -438,7 +496,7 @@ const Ceiling = ({ ceilingSize }: { ceilingSize: number }) => {
   );
 };
 
-// Sistema de iluminación de la galería
+// Gallery lighting system
 const GalleryLights = () => {
   return (
     <>
@@ -470,18 +528,13 @@ const GalleryLights = () => {
   );
 };
 
-// ============================================================================
-// COMPONENTES DE MOBILIARIO
-// ============================================================================
+// Gallery furniture components
 
-// Componente para los bancos
+// Benches component
 const GalleryBenches = ({ floorY }: { floorY: number }) => {
   return (
     <>
-      {/* Banco 1 - A la izquierda del modelo central */}
       <MetalBench position={[-3, floorY, 3]} rotation={[0, Math.PI / 4, 0]} />
-
-      {/* Banco 2 - A la derecha del modelo central */}
       <MetalBench position={[3, floorY, 3]} rotation={[0, -Math.PI / 4, 0]} />
     </>
   );
@@ -489,7 +542,6 @@ const GalleryBenches = ({ floorY }: { floorY: number }) => {
 
 // Componente para las plantas decorativas
 const GalleryPlants = ({ floorY }: { floorY: number }) => {
-  // Valores fijos exactos para las plantas del modelo principal
   const plant1X = -2.0;
   const plant1Y = -1.5;
   const plant1Z = 0.1;
@@ -504,28 +556,24 @@ const GalleryPlants = ({ floorY }: { floorY: number }) => {
 
   return (
     <>
-      {/* Planta 1 - Al lado IZQUIERDO del modelo principal */}
       <Plant1
         position={[plant1X, plant1Y, plant1Z]}
         rotation={[0, plant1RotationY, 0]}
         scale={[plant1Scale, plant1Scale, plant1Scale]}
       />
 
-      {/* Planta 2 - Al lado del Banco 1 (izquierda, atrás) - GRANDE */}
       <Plant2
         position={[-2.8, floorY, 3.8]}
         rotation={[0, -Math.PI / 6, 0]}
         scale={[2.2, 2.2, 2.2]}
       />
 
-      {/* Planta 3 - Al lado DERECHO del modelo principal */}
       <Plant3
         position={[plant3X, plant3Y, plant3Z]}
         rotation={[0, plant3RotationY, 0]}
         scale={[plant3Scale, plant3Scale, plant3Scale]}
       />
 
-      {/* Planta 4 - Al lado del Banco 2 (derecha, atrás) */}
       <Plant4
         position={[2.5, floorY, 4.5]}
         rotation={[0, Math.PI / 4, 0]}
@@ -535,10 +583,8 @@ const GalleryPlants = ({ floorY }: { floorY: number }) => {
   );
 };
 
-// Componente para las lámparas del techo
 const CeilingFixtures = () => {
-  // Valores fijos para las lámparas (sin controles Leva)
-  // Lámpara Central (Lámpara 2)
+  // Central lamp (Lamp 2)
   const centralLampX = -6.6;
   const centralLampY = 4.4;
   const centralLampZ = -6.6;
@@ -547,7 +593,7 @@ const CeilingFixtures = () => {
   const centralAngle = 1.5;
   const centralScale = 2.1;
 
-  // Lámpara Principal
+  // Main lamp
   const mainLampX = 0;
   const mainLampY = 6.5;
   const mainLampZ = 6.3;
@@ -555,7 +601,7 @@ const CeilingFixtures = () => {
   const mainIntensity = 3.5;
   const mainAngle = 0.6;
 
-  // Lámparas Laterales
+  // Side lamps
   const leftLampX = -4;
   const leftLampY = 6.5;
   const leftLampZ = -4;
@@ -570,18 +616,15 @@ const CeilingFixtures = () => {
   const rightIntensity = 2.5;
   const rightAngle = 0.5;
 
-  // Color general
   const lightColor = "#fff8e1";
 
   return (
     <>
-      {/* Lámpara central principal - Lámpara 2 (controlable) */}
       <CeilingLamp2
         position={[centralLampX, centralLampY, centralLampZ]}
         rotation={[0, 0, 0]}
         scale={[centralScale, centralScale, centralScale]}
       />
-      {/* Luz de la lámpara central */}
       <spotLight
         position={[centralLampX, centralLightY, centralLampZ]}
         target-position={[centralLampX, -1.5, centralLampZ]}
@@ -595,7 +638,6 @@ const CeilingFixtures = () => {
         shadow-camera-near={0.1}
         shadow-camera-far={15}
       />
-      {/* Luz ambiente adicional de la lámpara central */}
       <pointLight
         position={[centralLampX, centralLampY - 0.5, centralLampZ]}
         intensity={centralIntensity * 0.4}
@@ -604,13 +646,11 @@ const CeilingFixtures = () => {
         decay={2}
       />
 
-      {/* Lámpara principal sobre el modelo central */}
       <CeilingLamp
         position={[mainLampX, mainLampY, mainLampZ]}
         rotation={[0, 0, 0]}
         scale={[1.2, 1.2, 1.2]}
       />
-      {/* Luz de la lámpara principal */}
       <spotLight
         position={[mainLampX, mainLightY, mainLampZ]}
         target-position={[mainLampX, -1.5, mainLampZ]}
@@ -625,13 +665,11 @@ const CeilingFixtures = () => {
         shadow-camera-far={15}
       />
 
-      {/* Lámparas adicionales para iluminación general */}
       <CeilingLamp
         position={[leftLampX, leftLampY, leftLampZ]}
         rotation={[0, Math.PI / 4, 0]}
         scale={[0.9, 0.9, 0.9]}
       />
-      {/* Luz de la lámpara izquierda trasera */}
       <spotLight
         position={[leftLampX, leftLightY, leftLampZ]}
         target-position={[leftLampX, -1.5, leftLampZ]}
@@ -649,7 +687,6 @@ const CeilingFixtures = () => {
         rotation={[0, -Math.PI / 4, 0]}
         scale={[0.9, 0.9, 0.9]}
       />
-      {/* Luz de la lámpara derecha trasera */}
       <spotLight
         position={[rightLampX, rightLightY, rightLampZ]}
         target-position={[rightLampX, -1.5, rightLampZ]}
@@ -662,7 +699,6 @@ const CeilingFixtures = () => {
         shadow-mapSize-height={1024}
       />
 
-      {/* Luces adicionales para efecto de brillo suave alrededor de las lámparas */}
       <pointLight
         position={[mainLampX, mainLampY - 0.5, mainLampZ]}
         intensity={mainIntensity * 0.3}
@@ -688,19 +724,17 @@ const CeilingFixtures = () => {
   );
 };
 
-// ============================================================================
-// CONTROLADOR DEL JUGADOR
-// ============================================================================
+// Player controller
 
-// Hook para el control del teclado WASD y táctil para móviles
+// Hook for WASD keyboard and touch controls for mobile
 const usePlayerControls = () => {
   const keys = useRef({
     KeyW: false,
     KeyA: false,
     KeyS: false,
     KeyD: false,
-    KeyQ: false, // Para bajar en cámara libre
-    KeyE: false, // Para subir en cámara libre
+    KeyQ: false, // Down in free camera
+    KeyE: false, // Up in free camera
   });
 
   useEffect(() => {
@@ -772,13 +806,13 @@ const TouchControls = ({
       onMove(direction, false);
     };
 
-    // Agregar event listeners no pasivos para cada botón
+    // Add non-passive event listeners for each button
     Object.entries(buttonRefs.current).forEach(([direction, element]) => {
       if (element) {
         const touchStartHandler = handleTouchStart(direction);
         const touchEndHandler = handleTouchEnd(direction);
 
-        // Agregar event listeners no pasivos
+        // Add non-passive event listeners
         element.addEventListener("touchstart", touchStartHandler, {
           passive: false,
         });
@@ -789,7 +823,7 @@ const TouchControls = ({
           passive: false,
         });
 
-        // También agregar eventos de mouse para compatibilidad
+        // Also add mouse events for compatibility
         element.addEventListener("mousedown", (e) => {
           e.preventDefault();
           onMove(direction, true);
@@ -803,7 +837,7 @@ const TouchControls = ({
           onMove(direction, false);
         });
 
-        // Almacenar handlers para cleanup
+        // Store handlers for cleanup
         (element as any)._touchStartHandler = touchStartHandler;
         (element as any)._touchEndHandler = touchEndHandler;
       }
@@ -850,7 +884,6 @@ const TouchControls = ({
 
   return (
     <>
-      {/* Botón hacia adelante */}
       <div
         ref={(el) => {
           buttonRefs.current.forward = el;
@@ -864,7 +897,6 @@ const TouchControls = ({
         ↑
       </div>
 
-      {/* Botón hacia atrás */}
       <div
         ref={(el) => {
           buttonRefs.current.backward = el;
@@ -878,7 +910,6 @@ const TouchControls = ({
         ↓
       </div>
 
-      {/* Botón hacia la izquierda */}
       <div
         ref={(el) => {
           buttonRefs.current.left = el;
@@ -892,7 +923,6 @@ const TouchControls = ({
         ←
       </div>
 
-      {/* Botón hacia la derecha */}
       <div
         ref={(el) => {
           buttonRefs.current.right = el;
@@ -909,7 +939,7 @@ const TouchControls = ({
   );
 };
 
-// Componente de controles de cámara táctil para móviles
+// Touch camera controls for mobile
 const TouchCameraControls = ({ camera }: { camera: THREE.Camera }) => {
   const isMobile = useIsMobile();
   const touchStateRef = useRef({
@@ -944,20 +974,20 @@ const TouchCameraControls = ({ camera }: { camera: THREE.Camera }) => {
         const deltaX = touch.clientX - touchStateRef.current.lastTouchX;
         const deltaY = touch.clientY - touchStateRef.current.lastTouchY;
 
-        // Sensibilidad de la cámara
+        // Camera sensitivity
         const sensitivity = 0.003;
 
-        // Actualizar rotación
+        // Update rotation
         touchStateRef.current.rotationY -= deltaX * sensitivity;
         touchStateRef.current.rotationX -= deltaY * sensitivity;
 
-        // Limitar rotación vertical
+        // Limit vertical rotation
         touchStateRef.current.rotationX = Math.max(
           -Math.PI / 2 + 0.1,
           Math.min(Math.PI / 2 - 0.1, touchStateRef.current.rotationX)
         );
 
-        // Aplicar rotación a la cámara
+        // Apply rotation to camera
         camera.rotation.order = "YXZ";
         camera.rotation.y = touchStateRef.current.rotationY;
         camera.rotation.x = touchStateRef.current.rotationX;
@@ -973,7 +1003,7 @@ const TouchCameraControls = ({ camera }: { camera: THREE.Camera }) => {
       }
     };
 
-    // Agregar event listeners no pasivos
+    // Add non-passive event listeners
     canvas.addEventListener("touchstart", handleTouchStart, { passive: false });
     canvas.addEventListener("touchmove", handleTouchMove, { passive: false });
     canvas.addEventListener("touchend", handleTouchEnd, { passive: false });
@@ -988,9 +1018,7 @@ const TouchCameraControls = ({ camera }: { camera: THREE.Camera }) => {
   return null;
 };
 
-// ============================================================================
-// COMPONENTE PRINCIPAL
-// ============================================================================
+// Main component
 
 interface Model3DViewerSceneProps {
   modelUrl: string;
@@ -1001,7 +1029,18 @@ export default function Model3DViewerScene({
   modelUrl,
   onBack,
 }: Model3DViewerSceneProps) {
-  // Configuración del pedestal usando configuración centralizada
+  // States for blur/opacity system
+  const [sceneOpacity, setSceneOpacity] = useState(0);
+  const [sceneBlur, setSceneBlur] = useState(8);
+  const [assetsReady, setAssetsReady] = useState(false);
+  const [sceneReady, setSceneReady] = useState(false);
+
+  // Loading states
+  const [showBlackHoleLoader, setShowBlackHoleLoader] = useState(true);
+  const [realLoadingStarted, setRealLoadingStarted] = useState(false);
+  const [loaderInitialized, setLoaderInitialized] = useState(false);
+
+  // Pedestal configuration using centralized config
   const pedestalBaseDesiredY = floorY + PEDESTAL_CONFIG.baseOffset;
   const pedestalPosition: [number, number, number] = [
     0,
@@ -1009,7 +1048,7 @@ export default function Model3DViewerScene({
     0,
   ];
 
-  // Configuración del modelo principal
+  // Main model configuration
   const estimatedPedestalHeight =
     PEDESTAL_CONFIG.estimatedHeight * PEDESTAL_CONFIG.scale;
   const anceuModelBaseY = pedestalPosition[1] + estimatedPedestalHeight;
@@ -1019,7 +1058,7 @@ export default function Model3DViewerScene({
     0,
   ];
 
-  // Controles Leva para cámara libre
+  // Leva controls for free camera
   const { freeCameraMode, cameraSpeed } = useControls("Camera Controls", {
     freeCameraMode: { value: false, label: "Cámara Libre" },
     cameraSpeed: {
@@ -1031,7 +1070,7 @@ export default function Model3DViewerScene({
     },
   });
 
-  // Controles Leva para el tamaño del suelo y techo
+  // Leva controls for floor and ceiling size
   const { floorSize, ceilingSize } = useControls("Scene Size", {
     floorSize: { value: 20, min: 20, max: 200, step: 5, label: "Tamaño Suelo" },
     ceilingSize: {
@@ -1047,8 +1086,64 @@ export default function Model3DViewerScene({
   const touchControlsRef = useRef<any>();
   const isMobile = useIsMobile();
 
+  // Pre-initialize loader after first render
   useEffect(() => {
-    // Solo manejar pointer lock en PC
+    // Use requestAnimationFrame to ensure DOM is ready
+    const initTimer = requestAnimationFrame(() => {
+      setLoaderInitialized(true);
+    });
+    return () => cancelAnimationFrame(initTimer);
+  }, []);
+
+  // Hook for smooth progress (only start when loader is initialized)
+  const {
+    progress: smoothProgress,
+    phase,
+    setRealProgress,
+  } = useSmoothProgress(loaderInitialized && showBlackHoleLoader, () => {
+    // Cuando la animación artificial llegue al 95%, empezar carga real
+    setRealLoadingStarted(true);
+  });
+
+  // Function to handle real loading progress
+  const handleRealProgressUpdate = useCallback(
+    (progress: number, loaded: number, total: number) => {
+      setRealProgress(progress);
+
+      // Complete when reaching 100% real
+      if (progress >= 100 || (loaded === total && total > 0)) {
+        setTimeout(() => {
+          handleAssetsLoaded();
+          setTimeout(() => {
+            setShowBlackHoleLoader(false);
+          }, 500);
+        }, 500);
+      }
+    },
+    [setRealProgress]
+  );
+
+  useEffect(() => {
+    const safetyTimeout = setTimeout(() => {
+      handleAssetsLoaded();
+      setTimeout(() => {
+        setShowBlackHoleLoader(false);
+      }, 500);
+    }, 15000);
+
+    return () => clearTimeout(safetyTimeout);
+  }, []);
+
+  const handleAssetsLoaded = () => {
+    setAssetsReady(true);
+    setSceneOpacity(1);
+    setSceneBlur(0);
+    setTimeout(() => {
+      setSceneReady(true);
+    }, 1500);
+  };
+
+  useEffect(() => {
     if (!isMobile) {
       const handlePointerLockChange = () => {
         setIsPointerLockActive(document.pointerLockElement !== null);
@@ -1064,27 +1159,39 @@ export default function Model3DViewerScene({
   }, [isMobile]);
 
   const handleCanvasClick = () => {
-    // Solo activar pointer lock en PC
-    if (!isMobile) {
+    if (!isMobile && sceneReady && assetsReady) {
       const canvasEl = document.querySelector("canvas");
       if (canvasEl && document.pointerLockElement === null) {
-        (canvasEl as any).requestPointerLock?.();
+        try {
+          (canvasEl as any).requestPointerLock?.();
+        } catch (error) {
+          // Pointer lock failed
+        }
       }
     }
   };
 
   const handleBack = () => {
-    if (!isMobile && document.pointerLockElement) {
-      document.exitPointerLock();
+    try {
+      if (!isMobile && document.pointerLockElement) {
+        document.exitPointerLock();
+      }
+    } catch (error) {
+      // Exit pointer lock failed
     }
     onBack();
   };
 
-  const handleTouchMove = (direction: string, active: boolean) => {
+  const handleTouchMove = useCallback((direction: string, active: boolean) => {
     if (touchControlsRef.current) {
       touchControlsRef.current(direction, active);
     }
-  };
+  }, []);
+
+  // Optimizar callback de onComplete para evitar recreaciones
+  const handleBlackHoleComplete = useCallback(() => {
+    setShowBlackHoleLoader(false);
+  }, []);
 
   return (
     <div
@@ -1101,43 +1208,69 @@ export default function Model3DViewerScene({
       {/* Precargar todos los modelos */}
       <ModelPreloader />
 
-      <Canvas shadows dpr={[1, 1.5]}>
-        <PerspectiveCamera makeDefault fov={60} position={[0, 0, 0]} />
-        <PlayerControllerWithTouch
-          floorY={floorY}
-          freeCameraMode={freeCameraMode}
-          cameraSpeed={cameraSpeed}
-          onTouchControlsRef={(ref: any) => {
-            touchControlsRef.current = ref;
-          }}
+      {/* BlackHole Loader como overlay - optimizado para performance */}
+      {showBlackHoleLoader && loaderInitialized && (
+        <BlackHoleLoader
+          progress={smoothProgress}
+          onComplete={handleBlackHoleComplete}
         />
+      )}
 
-        {/* Iluminación */}
-        <GalleryLights />
+      {/* Escena principal con blur/opacidad */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          opacity: sceneOpacity,
+          filter: `blur(${sceneBlur}px)`,
+          transition: "opacity 1.5s ease-in-out, filter 1s ease-out",
+        }}
+      >
+        <Canvas shadows dpr={[1, 1.5]}>
+          <Preload all />
+          <PerspectiveCamera makeDefault fov={60} position={[0, 0, 0]} />
 
-        {/* Estructura de la galería */}
-        <GalleryWalls floorY={floorY} />
-        <Floor floorSize={floorSize} />
-        <Ceiling ceilingSize={ceilingSize} />
+          {/* Tracker de progreso de carga */}
+          <LoadingProgressTracker
+            onRealProgressUpdate={handleRealProgressUpdate}
+            enabled={realLoadingStarted}
+          />
 
-        {/* Modelo principal con pedestal */}
-        <PedestalModel
-          position={pedestalPosition}
-          modelScale={PEDESTAL_CONFIG.scale}
-        />
+          <PlayerControllerWithTouch
+            floorY={floorY}
+            freeCameraMode={freeCameraMode}
+            cameraSpeed={cameraSpeed}
+            sceneReady={sceneReady}
+            onTouchControlsRef={(ref: any) => {
+              touchControlsRef.current = ref;
+            }}
+          />
 
-        {/* Mobiliario */}
-        <GalleryBenches floorY={floorY} />
-        <GalleryPlants floorY={floorY} />
-        <CeilingFixtures />
+          {/* Iluminación */}
+          <GalleryLights />
 
-        <React.Suspense fallback={null}>
-          <group position={anceuModelGroupPosition}>
-            <Model3DComponent url={modelUrl} />
-          </group>
-          <Environment preset="sunset" />
-        </React.Suspense>
-      </Canvas>
+          {/* Estructura de la galería */}
+          <GalleryWalls floorY={floorY} />
+          <Floor floorSize={floorSize} />
+          <Ceiling ceilingSize={ceilingSize} />
+          {/* Mobiliario */}
+          <GalleryBenches floorY={floorY} />
+          <GalleryPlants floorY={floorY} />
+          <CeilingFixtures />
+
+          {/* Suspense con fallback compatible con Three.js */}
+          <React.Suspense
+            fallback={<EmptyFallback onLoaded={handleAssetsLoaded} />}
+          >
+            <group position={anceuModelGroupPosition}>
+              <Model3DComponent url={modelUrl} />
+            </group>
+            <Environment preset="sunset" />
+          </React.Suspense>
+        </Canvas>
+      </div>
 
       {/* Back button */}
       <button
@@ -1182,7 +1315,10 @@ export default function Model3DViewerScene({
           {!isMobile ? (
             <>
               <div style={{ marginBottom: "12px" }}>
-                <strong>PC:</strong> Click on the scene to activate controls.
+                <strong>PC:</strong>{" "}
+                {sceneReady && assetsReady
+                  ? "Click on the scene to activate controls."
+                  : "Waiting for scene to load..."}
                 Use WASD to move and mouse to look around. Press ESC to release.
               </div>
               {freeCameraMode && (
@@ -1212,11 +1348,13 @@ const PlayerControllerWithTouch = ({
   floorY,
   freeCameraMode,
   cameraSpeed,
+  sceneReady,
   onTouchControlsRef,
 }: {
   floorY: number;
   freeCameraMode: boolean;
   cameraSpeed: number;
+  sceneReady: boolean;
   onTouchControlsRef: (ref: any) => void;
 }) => {
   const { camera, gl } = useThree();
@@ -1231,7 +1369,7 @@ const PlayerControllerWithTouch = ({
     right: false,
   });
 
-  // Función para manejar controles táctiles
+  // Function to handle touch controls
   const handleTouchMove = (direction: string, active: boolean) => {
     switch (direction) {
       case "forward":
@@ -1249,52 +1387,58 @@ const PlayerControllerWithTouch = ({
     }
   };
 
-  // Pasar la referencia de la función al componente padre
+  // Pass function reference to parent component
   useEffect(() => {
     onTouchControlsRef(handleTouchMove);
   }, [onTouchControlsRef]);
 
-  // Establecer posición inicial de la cámara
+  // Set initial camera position
   useEffect(() => {
     camera.position.set(0, floorY + CAMERA_HEIGHT_ABOVE_FLOOR, 5);
     camera.lookAt(0, floorY + CAMERA_HEIGHT_ABOVE_FLOOR, 0);
 
-    // Solo usar PointerLockControls en PC
     if (!isMobile && controlsRef.current) {
-      controlsRef.current.lock();
-      setTimeout(() => controlsRef.current.unlock(), 0);
+      try {
+        // Don't auto-lock, wait for user click
+      } catch (error) {
+        // Pointer lock initialization failed
+      }
     }
   }, [camera, floorY, isMobile]);
 
   useFrame((state, delta) => {
-    // En móviles, no usar PointerLockControls
-    if (isMobile || !controlsRef.current || !controlsRef.current.isLocked) {
-      // Para móviles, permitir movimiento sin lock
+    // For mobile, don't use PointerLockControls
+    if (isMobile || !controlsRef.current) {
+      // Allow movement without lock on mobile
       if (!isMobile) {
         playerVelocity.current.set(0, 0, 0);
         return;
       }
+    } else if (!isMobile && !controlsRef.current.isLocked) {
+      // On PC, only allow movement if locked
+      playerVelocity.current.set(0, 0, 0);
+      return;
     }
 
-    // Usar velocidad personalizada si está en modo cámara libre
+    // Use custom speed if in free camera mode
     const speedDelta = delta * (freeCameraMode ? cameraSpeed : PLAYER_SPEED);
     const moveDirection = new THREE.Vector3();
 
-    // Controles de teclado (PC)
+    // Keyboard controls (PC)
     if (!isMobile) {
       if (keys.current.KeyW) moveDirection.z = -1;
       if (keys.current.KeyS) moveDirection.z = 1;
       if (keys.current.KeyA) moveDirection.x = -1;
       if (keys.current.KeyD) moveDirection.x = 1;
 
-      // Controles de altura para cámara libre
+      // Height controls for free camera
       if (freeCameraMode) {
-        if (keys.current.KeyQ) moveDirection.y = -1; // Bajar
-        if (keys.current.KeyE) moveDirection.y = 1; // Subir
+        if (keys.current.KeyQ) moveDirection.y = -1; // Down
+        if (keys.current.KeyE) moveDirection.y = 1; // Up
       }
     }
 
-    // Controles táctiles (móviles)
+    // Touch controls (mobile)
     if (isMobile) {
       if (touchControls.current.forward) moveDirection.z = -1;
       if (touchControls.current.backward) moveDirection.z = 1;
@@ -1310,10 +1454,10 @@ const PlayerControllerWithTouch = ({
       newPosition.addScaledVector(moveDirection, speedDelta);
 
       if (freeCameraMode) {
-        // Modo cámara libre: sin restricciones de altura ni límites de habitación
+        // Free camera mode: no height restrictions or room limits
         camera.position.copy(newPosition);
       } else {
-        // Modo normal: mantener altura fija y aplicar límites de colisión
+        // Normal mode: maintain fixed height and apply collision limits
         newPosition.y = floorY + CAMERA_HEIGHT_ABOVE_FLOOR;
         newPosition.x = Math.max(
           ROOM_BOUNDS.minX,
@@ -1330,12 +1474,10 @@ const PlayerControllerWithTouch = ({
 
   return (
     <>
-      {/* PointerLockControls solo para PC */}
       {!isMobile && (
         <PointerLockControls ref={controlsRef} args={[camera, gl.domElement]} />
       )}
 
-      {/* Controles de cámara táctil solo para móviles */}
       {isMobile && <TouchCameraControls camera={camera} />}
     </>
   );

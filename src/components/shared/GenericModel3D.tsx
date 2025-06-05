@@ -12,7 +12,17 @@ export function GenericModel3D({
   receiveShadow = true,
   ...groupProps
 }: Model3DProps) {
+  if (!modelPath) {
+    console.warn("GenericModel3D: modelPath is required");
+    return null;
+  }
+
   const gltf = useGLTF(modelPath);
+
+  if (!gltf || !gltf.scene) {
+    console.warn("GenericModel3D: Failed to load model:", modelPath);
+    return null;
+  }
 
   return (
     <group {...groupProps} dispose={null}>

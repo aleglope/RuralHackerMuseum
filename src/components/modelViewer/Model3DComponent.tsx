@@ -92,21 +92,6 @@ export default function Model3DComponent({ url }: Model3DProps) {
 
         loadedModel.scale.setScalar(calculatedScale);
 
-        // console.log( // Dev log for checking final transforms
-        //   "Model3DComponent: Processed model:",
-        //   { url },
-        //   {
-        //     pos: loadedModel.position.toArray(),
-        //     rot: [
-        //       loadedModel.rotation.x,
-        //       loadedModel.rotation.y,
-        //       loadedModel.rotation.z,
-        //     ],
-        //     scale: loadedModel.scale.x,
-        //     centeredOffset: center.toArray(),
-        //   }
-        // );
-
         // Ensure all meshes in the model cast and receive shadows.
         loadedModel.traverse((child) => {
           if (child instanceof THREE.Mesh) {
