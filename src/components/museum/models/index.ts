@@ -9,3 +9,4 @@ export { CeilingLamp, CeilingLamp2, Lamp } from "./Lamps";
 // Architecture
 export { Window } from "./Window";
 export { WindowView } from "./WindowView";
+export { Pepe } from "./Pepe";

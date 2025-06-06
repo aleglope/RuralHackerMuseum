@@ -21,6 +21,7 @@ import {
   Plant4,
   Window,
   WindowView,
+  Pepe,
 } from "../museum/models";
 import { ModelPreloader } from "../shared/ModelPreloader";
 import {
@@ -412,6 +413,8 @@ const GalleryWalls = ({ floorY }: { floorY: number }) => {
       />
 
       <WindowView />
+
+      <Pepe />
 
       <mesh
         position={[10, 2.5, 0]}

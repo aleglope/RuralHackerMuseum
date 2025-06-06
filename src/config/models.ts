@@ -25,6 +25,7 @@ export const MODEL_PATHS = {
   ARCHITECTURE: {
     WINDOW: "/models/window.glb",
     WINDOW_VIEW: "/models/window-view.glb",
+    PEPE: "/models/pepe.glb",
   },
 
   // Main model
