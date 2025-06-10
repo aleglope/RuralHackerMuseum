@@ -23,6 +23,8 @@ export function Pepe(props: GroupProps) {
     hasTriggered: false,
     isNearWindow: false,
     lastDistance: Infinity,
+    activeGLBAction: null as any,
+    sequenceTriggeredByProximity: false,
   });
 
   // Animation sequence state
@@ -55,13 +57,13 @@ export function Pepe(props: GroupProps) {
     enableAnimations,
     selectedAnimation,
     animationSpeed,
-    startMovementSequence,
     // Proximity controls
     enableProximityTrigger,
     proximityDistance,
     windowPositionX,
     windowPositionY,
     windowPositionZ,
+    debugProximity,
   } = useControls("Pepe Model", {
     positionX: { value: -19.1, min: -30, max: 30, step: 0.1 },
     positionY: { value: -2.5, min: -10, max: 20, step: 0.1 },
@@ -80,8 +82,11 @@ export function Pepe(props: GroupProps) {
       step: 0.1,
       label: "Tamaño Ejes",
     },
-    // Animation controls
-    enableAnimations: { value: false, label: "Activar Animaciones GLB" },
+    // Animation controls (manual override)
+    enableAnimations: {
+      value: false,
+      label: "Activar Animaciones GLB (Manual)",
+    },
     selectedAnimation: {
       value: animationNames[0] || "none",
       options: animationNames.length > 0 ? animationNames : ["none"],
@@ -94,14 +99,10 @@ export function Pepe(props: GroupProps) {
       step: 0.1,
       label: "Velocidad GLB",
     },
-    startMovementSequence: {
-      value: false,
-      label: "Iniciar Secuencia Movimiento",
-    },
     // Proximity controls
     enableProximityTrigger: {
       value: true,
-      label: "Activar por Proximidad",
+      label: "🎯 Activar por Proximidad",
     },
     proximityDistance: {
       value: 5.0,
@@ -130,6 +131,10 @@ export function Pepe(props: GroupProps) {
       max: 30,
       step: 0.1,
       label: "Ventana Z",
+    },
+    debugProximity: {
+      value: false,
+      label: "🐛 Debug Proximidad",
     },
   });
 
@@ -181,13 +186,14 @@ export function Pepe(props: GroupProps) {
     }
   }, [showAxes, axesSize]);
 
-  // Animation effects for GLB animations
+  // Manual GLB animation control (only when not auto-triggered)
   useEffect(() => {
     if (
       enableAnimations &&
       selectedAnimation &&
       selectedAnimation !== "none" &&
-      actions[selectedAnimation]
+      actions[selectedAnimation] &&
+      !animationStateRef.current.autoTriggered
     ) {
       const action = actions[selectedAnimation];
       action.reset().fadeIn(0.5).play();
@@ -198,25 +204,38 @@ export function Pepe(props: GroupProps) {
     }
   }, [enableAnimations, selectedAnimation, animationSpeed, actions]);
 
-  // Effect to start movement sequence
-  useEffect(() => {
-    if (startMovementSequence && !animationStateRef.current.isActive) {
-      animationStateRef.current.isActive = true;
-      animationStateRef.current.phase = "walking1";
-      animationStateRef.current.startTime = 0; // Will be set in useFrame
-      animationStateRef.current.currentPosition = {
-        x: -19.1,
-        y: -2.5,
-        z: -7.4,
-      };
-      animationStateRef.current.currentRotationY = 0.0;
-      console.log("Starting movement sequence");
-    }
-  }, [startMovementSequence]);
+  // Function to start the complete sequence (movement + animation)
+  const startCompleteSequence = () => {
+    console.log("🎬 Starting complete sequence: Movement + Animation");
 
-  // Proximity detection and auto-trigger system
+    // Start movement sequence
+    animationStateRef.current.isActive = true;
+    animationStateRef.current.phase = "walking1";
+    animationStateRef.current.startTime = 0;
+    animationStateRef.current.currentPosition = { x: -19.1, y: -2.5, z: -7.4 };
+    animationStateRef.current.currentRotationY = 0.0;
+    animationStateRef.current.autoTriggered = true;
+    proximityRef.current.sequenceTriggeredByProximity = true;
+
+    // Start GLB animation
+    if (animationNames.length > 0) {
+      const firstAnimation = animationNames[0];
+      if (actions[firstAnimation]) {
+        const action = actions[firstAnimation];
+        action.reset().fadeIn(0.5).play();
+        action.setEffectiveTimeScale(animationSpeed);
+        proximityRef.current.activeGLBAction = action;
+        console.log(`🎭 GLB Animation started: ${firstAnimation}`);
+      }
+    }
+  };
+
+  // Unified proximity detection and animation system
   useFrame((frameState) => {
-    // Proximity detection
+    // Check if we're in pointer lock mode or free mode
+    const isPointerLocked = document.pointerLockElement !== null;
+
+    // Proximity detection (works regardless of pointer lock state)
     if (enableProximityTrigger && camera) {
       const cameraPosition = camera.position;
       const windowPosition = new THREE.Vector3(
@@ -229,115 +248,156 @@ export function Pepe(props: GroupProps) {
       proximityRef.current.lastDistance = distance;
       proximityRef.current.isNearWindow = distance <= proximityDistance;
 
-      // Trigger animation when getting close to window
+      // Debug info
+      if (debugProximity) {
+        console.log(
+          `📍 Camera: ${cameraPosition.x.toFixed(
+            1
+          )}, ${cameraPosition.y.toFixed(1)}, ${cameraPosition.z.toFixed(
+            1
+          )} | Window: ${windowPositionX}, ${windowPositionY}, ${windowPositionZ} | Distance: ${distance.toFixed(
+            2
+          )} | Locked: ${isPointerLocked}`
+        );
+      }
+
+      // Trigger complete sequence when getting close to window
       if (
         proximityRef.current.isNearWindow &&
-        !proximityRef.current.hasTriggered
+        !proximityRef.current.hasTriggered &&
+        !animationStateRef.current.isActive
       ) {
         console.log(
-          `Player near window! Distance: ${distance.toFixed(
+          `🎯 Player near window! Distance: ${distance.toFixed(
             2
-          )} - Triggering animation`
+          )} | Camera locked: ${isPointerLocked}`
         );
-
-        // Auto-start the movement sequence
-        if (!animationStateRef.current.isActive) {
-          animationStateRef.current.isActive = true;
-          animationStateRef.current.phase = "walking1";
-          animationStateRef.current.startTime = 0;
-          animationStateRef.current.currentPosition = {
-            x: -19.1,
-            y: -2.5,
-            z: -7.4,
-          };
-          animationStateRef.current.currentRotationY = 0.0;
-          animationStateRef.current.autoTriggered = true;
-        }
-
-        // Auto-start GLB animation
-        if (animationNames.length > 0 && !enableAnimations) {
-          const firstAnimation = animationNames[0];
-          if (actions[firstAnimation]) {
-            const action = actions[firstAnimation];
-            action.reset().fadeIn(0.5).play();
-            action.setEffectiveTimeScale(animationSpeed);
-          }
-        }
-
+        startCompleteSequence();
         proximityRef.current.hasTriggered = true;
       }
 
-      // Reset trigger when moving away from window
-      if (distance > proximityDistance + 2.0) {
-        // Add hysteresis
+      // Reset trigger when moving away from window (after sequence completes)
+      if (
+        distance > proximityDistance + 2.0 &&
+        !animationStateRef.current.isActive
+      ) {
         proximityRef.current.hasTriggered = false;
+        if (proximityRef.current.activeGLBAction) {
+          proximityRef.current.activeGLBAction.fadeOut(0.5);
+          proximityRef.current.activeGLBAction = null;
+        }
+        animationStateRef.current.autoTriggered = false;
+        proximityRef.current.sequenceTriggeredByProximity = false;
+        console.log("🔄 Reset trigger - ready for next activation");
       }
     }
 
-    // Movement sequence animation
-    if (!animationStateRef.current.isActive) return;
+    // Movement sequence animation (smooth and fluid - ALWAYS applies transforms)
+    if (animationStateRef.current.isActive) {
+      const state = animationStateRef.current;
 
-    const state = animationStateRef.current;
+      // Initialize start time on first frame
+      if (state.startTime === 0) {
+        state.startTime = frameState.clock.elapsedTime * 1000;
+      }
 
-    // Initialize start time on first frame
-    if (state.startTime === 0) {
-      state.startTime = frameState.clock.elapsedTime * 1000;
+      const elapsed = frameState.clock.elapsedTime - state.startTime / 1000;
+
+      switch (state.phase) {
+        case "walking1": {
+          // Phase 1: Move from Z -7.4 to -5 (duration: 3 seconds)
+          const duration = 5.0;
+          const progress = Math.min(elapsed / duration, 1);
+          const startZ = -7.4;
+          const endZ = 3.0;
+
+          // Smooth eased interpolation for fluid movement
+          const easedProgress =
+            progress < 0.5
+              ? 2 * progress * progress
+              : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+          state.currentPosition.z = startZ + (endZ - startZ) * easedProgress;
+
+          if (progress >= 1) {
+            state.phase = "rotating";
+            state.startTime = frameState.clock.elapsedTime * 1000;
+            console.log("✅ Phase 1 complete, moving to rotation");
+          }
+          break;
+        }
+
+        case "rotating": {
+          // Phase 2: Rotate Y to -0.9 (duration: 2 seconds)
+          const duration = 2.0;
+          const progress = Math.min(elapsed / duration, 1);
+          const startY = 0.0;
+          const endY = -0.9;
+
+          // Smooth rotation with easing
+          const easedProgress =
+            progress < 0.5
+              ? 2 * progress * progress
+              : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+          state.currentRotationY = startY + (endY - startY) * easedProgress;
+
+          if (progress >= 1) {
+            state.phase = "walking2";
+            state.startTime = frameState.clock.elapsedTime * 1000;
+            console.log("✅ Phase 2 complete, moving to walking2");
+          }
+          break;
+        }
+
+        case "walking2": {
+          // Phase 3: Move from Z -5 to -3 (duration: 2 seconds)
+          const duration = 2.0;
+          const progress = Math.min(elapsed / duration, 1);
+          const startZ = -3.0;
+          const endZ = -1.0;
+
+          // Smooth final movement
+          const easedProgress =
+            progress < 0.5
+              ? 2 * progress * progress
+              : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+          state.currentPosition.z = startZ + (endZ - startZ) * easedProgress;
+
+          if (progress >= 1) {
+            state.phase = "idle";
+            state.isActive = false;
+            console.log("🎉 Sequence complete - Pepe has finished his walk!");
+          }
+          break;
+        }
+      }
+
+      // ALWAYS apply transforms when sequence is active - regardless of pointer lock
+      if (groupRef.current) {
+        groupRef.current.position.set(
+          state.currentPosition.x,
+          state.currentPosition.y,
+          state.currentPosition.z
+        );
+        groupRef.current.rotation.set(
+          rotationX,
+          state.currentRotationY,
+          rotationZ
+        );
+      }
+    } else {
+      // When sequence is not active, use manual controls
+      if (groupRef.current) {
+        groupRef.current.position.set(positionX, positionY, positionZ);
+        groupRef.current.rotation.set(rotationX, rotationY, rotationZ);
+      }
     }
 
-    const elapsed = frameState.clock.elapsedTime - state.startTime / 1000;
-
-    switch (state.phase) {
-      case "walking1": {
-        // Phase 1: Move from Z -7.4 to -5 (duration: 3 seconds)
-        const duration = 3.0;
-        const progress = Math.min(elapsed / duration, 1);
-        const startZ = -7.4;
-        const endZ = -5.0;
-
-        // Linear interpolation
-        state.currentPosition.z = startZ + (endZ - startZ) * progress;
-
-        if (progress >= 1) {
-          state.phase = "rotating";
-          state.startTime = frameState.clock.elapsedTime * 1000; // Convert back to milliseconds
-          console.log("Phase 1 complete, moving to rotation");
-        }
-        break;
-      }
-
-      case "rotating": {
-        // Phase 2: Rotate Y to -0.9 (duration: 2 seconds)
-        const duration = 2.0;
-        const progress = Math.min(elapsed / duration, 1);
-        const startY = 0.0;
-        const endY = -0.9;
-
-        state.currentRotationY = startY + (endY - startY) * progress;
-
-        if (progress >= 1) {
-          state.phase = "walking2";
-          state.startTime = frameState.clock.elapsedTime * 1000;
-          console.log("Phase 2 complete, moving to walking2");
-        }
-        break;
-      }
-
-      case "walking2": {
-        // Phase 3: Move from Z -5 to -3 (duration: 2 seconds)
-        const duration = 2.0;
-        const progress = Math.min(elapsed / duration, 1);
-        const startZ = -5.0;
-        const endZ = -3.0;
-
-        state.currentPosition.z = startZ + (endZ - startZ) * progress;
-
-        if (progress >= 1) {
-          state.phase = "idle";
-          state.isActive = false;
-          console.log("Sequence complete");
-        }
-        break;
-      }
+    // ALWAYS apply scale
+    if (groupRef.current) {
+      groupRef.current.scale.set(scaleX, scaleY, scaleZ);
     }
   });
 
@@ -345,21 +405,7 @@ export function Pepe(props: GroupProps) {
     <group
       ref={groupRef}
       {...props}
-      position={
-        animationStateRef.current.isActive
-          ? [
-              animationStateRef.current.currentPosition.x,
-              animationStateRef.current.currentPosition.y,
-              animationStateRef.current.currentPosition.z,
-            ]
-          : [positionX, positionY, positionZ]
-      }
-      rotation={
-        animationStateRef.current.isActive
-          ? [rotationX, animationStateRef.current.currentRotationY, rotationZ]
-          : [rotationX, rotationY, rotationZ]
-      }
-      scale={[scaleX, scaleY, scaleZ]}
+      // Don't use position/rotation props, handle everything in useFrame
       dispose={null}
     >
       <primitive object={gltf.scene} castShadow={true} receiveShadow={true} />
