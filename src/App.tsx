@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useContext } from "react";
-import { ImageMetadata } from "./types/museum";
-import { drawingImages } from "./config/imagesConfig";
+import { ImageMetadata } from "./core/types";
+import { GALLERY_IMAGES as drawingImages } from "./core/config";
 import SwipeableContainer from "./components/ui/SwipeableContainer";
 import { TourProvider } from "./contexts/TourContext";
 import { AnimationProvider, useAnimation } from "./contexts/AnimationContext";
 import Scene from "./components/Scene";
 import UIElements from "./components/ui/UIElements";
-import Model3DViewerScene from "./components/modelViewer/Model3DViewerScene";
+import Model3DViewerScene from "./features/model-viewer/Model3DViewerScene";
 
 type ViewState = "gallery" | "modelViewer";
 

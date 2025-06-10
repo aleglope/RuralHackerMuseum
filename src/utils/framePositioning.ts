@@ -3,7 +3,7 @@ import {
   FrameRotation,
   RoomDimensions,
   FramePositioningResult,
-} from "../types/museum";
+} from "../core/types";
 
 const HEIGHT_OF_FRAMES = 2;
 

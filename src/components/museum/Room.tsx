@@ -50,13 +50,19 @@ const Room: React.FC<RoomProps> = ({
         <meshStandardMaterial color="#1A1637" metalness={0} roughness={0.9} />
       </mesh>
 
-      {/* Benches*/}
-      <MetalBench position={[0, 0, 2]} rotation={[0, Math.PI / 2, 0]} />
-      <MetalBench position={[2, 0, 4.5]} rotation={[0, wallTiltAngle, 0]} />
-      <MetalBench position={[2.9, 0, 8.75]} rotation={[0, wallTiltAngle, 0]} />
-      <MetalBench position={[-2, 0, 4.5]} rotation={[0, -wallTiltAngle, 0]} />
+      {/* Museum benches - original positions restored */}
+      <MetalBench position={[0, -1.4, 2]} rotation={[0, Math.PI / 2, 0]} />
+      <MetalBench position={[2, -1.4, 4.5]} rotation={[0, wallTiltAngle, 0]} />
       <MetalBench
-        position={[-2.9, 0, 8.75]}
+        position={[2.9, -1.4, 8.75]}
+        rotation={[0, wallTiltAngle, 0]}
+      />
+      <MetalBench
+        position={[-2, -1.4, 4.5]}
+        rotation={[0, -wallTiltAngle, 0]}
+      />
+      <MetalBench
+        position={[-2.9, -1.4, 8.75]}
         rotation={[0, -wallTiltAngle, 0]}
       />
 

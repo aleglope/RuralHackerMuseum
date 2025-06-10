@@ -1,28 +1,25 @@
 /*
-Unified Lamp Components
-Uses GenericModel3D to eliminate code duplication
+Unified Lamp Components - MIGRATED TO NEW ARCHITECTURE
+Uses BaseModel3D with centralized registry
 */
 
-import { GenericModel3D } from "../../shared/GenericModel3D";
-import { MODEL_PATHS } from "../../../config/models";
+import { BaseModel3D } from "../../../core/models";
 import { GroupProps } from "@react-three/fiber";
 
-// Componentes individuales de lámparas (mantenemos compatibilidad)
+// Componentes individuales de lámparas - NUEVA ARQUITECTURA
 export function CeilingLamp(props: GroupProps) {
-  return (
-    <GenericModel3D modelPath={MODEL_PATHS.LAMPS.CEILING_MOON} {...props} />
-  );
+  return <BaseModel3D modelId="CEILING_MOON" {...props} />;
 }
 
 export function CeilingLamp2(props: GroupProps) {
-  return <GenericModel3D modelPath={MODEL_PATHS.LAMPS.CEILING_2} {...props} />;
+  return <BaseModel3D modelId="CEILING_2" {...props} />;
 }
 
-// Generic component that accepts lamp type
+// Generic component that accepts lamp type - NUEVA ARQUITECTURA
 interface LampProps extends GroupProps {
-  lampType: keyof typeof MODEL_PATHS.LAMPS;
+  lampType: "CEILING_MOON" | "CEILING_2";
 }
 
 export function Lamp({ lampType, ...props }: LampProps) {
-  return <GenericModel3D modelPath={MODEL_PATHS.LAMPS[lampType]} {...props} />;
+  return <BaseModel3D modelId={lampType} {...props} />;
 }

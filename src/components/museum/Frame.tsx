@@ -1,7 +1,7 @@
 import React, { useState, useRef, useContext, forwardRef } from "react";
 import { useTexture, Text, useCursor, useFont } from "@react-three/drei";
 import * as THREE from "three";
-import { ImageMetadata } from "../../types/museum";
+import { ImageMetadata } from "../../core/types";
 import { ZoomContext } from "../../contexts/ZoomContext";
 
 interface FrameProps {

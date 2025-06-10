@@ -1,14 +1,10 @@
 import React, { Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
-import {
-  AdaptiveDpr,
-  AdaptiveEvents,
-  Environment,
-  Preload,
-} from "@react-three/drei";
+import { AdaptiveDpr, AdaptiveEvents, Preload } from "@react-three/drei";
+import SafeEnvironment from "./ui/SafeEnvironment";
 import { Perf } from "r3f-perf";
 import Museum from "./Museum";
-import { ImageMetadata } from "../types/museum";
+import { ImageMetadata } from "../core/types";
 import { useAnimation } from "../contexts/AnimationContext";
 
 interface SceneProps {
@@ -53,7 +49,7 @@ const Scene: React.FC<SceneProps> = ({ images, onShowModelViewer }) => {
         <color attach="background" args={["#000000"]} />
         <Suspense fallback={<EmptyFallback onLoaded={handleAssetsLoaded} />}>
           <Museum images={images} onShowModelViewer={onShowModelViewer} />
-          <Environment preset="city" />
+          <SafeEnvironment preset="city" fallback="studio" />
         </Suspense>
       </Canvas>
     </div>

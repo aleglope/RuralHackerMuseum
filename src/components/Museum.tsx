@@ -3,8 +3,8 @@ import * as THREE from "three";
 import Frame from "./museum/Frame";
 import Room from "./museum/Room";
 import { calculateFramePositions } from "../utils/framePositioning";
-import { defaultRoomDimensions } from "../config/roomConfig";
-import { ImageMetadata } from "../types/museum";
+import { ROOM_DIMENSIONS } from "../core/config";
+import { ImageMetadata } from "../core/types";
 import { BakeShadows } from "@react-three/drei";
 import { ZoomProvider } from "../contexts/ZoomContext";
 import { CameraManager } from "./museum/CameraManager";
@@ -30,7 +30,7 @@ const Museum: React.FC<MuseumProps> = ({ images, onShowModelViewer }) => {
   }, [images.length]);
 
   const { framePositions, frameRotations } = calculateFramePositions(
-    defaultRoomDimensions,
+    ROOM_DIMENSIONS,
     images.length
   );
 
@@ -46,10 +46,10 @@ const Museum: React.FC<MuseumProps> = ({ images, onShowModelViewer }) => {
 
       <group>
         <Room
-          width={defaultRoomDimensions.width}
-          length={defaultRoomDimensions.length}
-          height={defaultRoomDimensions.height}
-          wallTiltAngle={defaultRoomDimensions.wallTiltAngle}
+          width={ROOM_DIMENSIONS.width}
+          length={ROOM_DIMENSIONS.length}
+          height={ROOM_DIMENSIONS.height}
+          wallTiltAngle={ROOM_DIMENSIONS.wallTiltAngle}
         />
 
         {images.map((image, index) => {
@@ -86,7 +86,7 @@ const Museum: React.FC<MuseumProps> = ({ images, onShowModelViewer }) => {
         <ambientLight intensity={0.3} />
         <directionalLight intensity={2.5} position={[0, -100, 5]} />
 
-        <SpotlightGroup roomHeight={defaultRoomDimensions.height} />
+        <SpotlightGroup roomHeight={ROOM_DIMENSIONS.height} />
         <CeilingLight position={[-0.75, 3.95, 5]} />
         <CeilingLight position={[0.75, 3.95, 5]} />
 
