@@ -1,17 +1,24 @@
 /*
 Pepe Component
-Component for loading and displaying the GLB pepe model with Leva controls
-Positioned near the window view area with independent positioning controls
+Component for loading and displaying the GLB pepe model with proximity-based animation
+Positioned near the window view area with automatic movement sequence
 */
 
 import React, { useEffect, useRef } from "react";
 import { useGLTF, useAnimations } from "@react-three/drei";
 import { MODEL_PATHS } from "../../../config/models";
 import { GroupProps, useFrame, useThree } from "@react-three/fiber";
-import { useControls } from "leva";
 import * as THREE from "three";
 
-// Pepe component with positioning controls and animations
+// Constants for Pepe positioning and behavior
+const INITIAL_POSITION = { x: -19.1, y: -2.5, z: -7.4 };
+const INITIAL_ROTATION = { x: 0.0, y: 0.0, z: 0.0 };
+const SCALE = { x: 100.0, y: 100.0, z: 100.0 };
+const WINDOW_POSITION = { x: -10.0, y: 0.0, z: -8.0 };
+const PROXIMITY_DISTANCE = 5.0;
+const ANIMATION_SPEED = 1.0;
+
+// Pepe component with proximity-based animation sequence
 export function Pepe(props: GroupProps) {
   const gltf = useGLTF(MODEL_PATHS.ARCHITECTURE.PEPE);
   const groupRef = useRef<THREE.Group>(null);
@@ -22,7 +29,6 @@ export function Pepe(props: GroupProps) {
   const proximityRef = useRef({
     hasTriggered: false,
     isNearWindow: false,
-    lastDistance: Infinity,
     activeGLBAction: null as any,
     sequenceTriggeredByProximity: false,
   });
@@ -32,114 +38,16 @@ export function Pepe(props: GroupProps) {
     isActive: false,
     phase: "idle", // 'walking1', 'rotating', 'walking2', 'completed', 'idle'
     startTime: 0,
-    currentPosition: { x: -19.1, y: -2.5, z: -7.4 },
+    currentPosition: { ...INITIAL_POSITION },
     currentRotationY: 0.0,
-    autoTriggered: false, // Track if triggered by proximity
-    finalPosition: { x: 0, y: 0, z: 0 }, // Store final position after sequence
-    finalRotationY: 0, // Store final rotation after sequence
-    isVisible: true, // Control visibility of the model
+    autoTriggered: false,
+    finalPosition: { x: 0, y: 0, z: 0 },
+    finalRotationY: 0,
+    isVisible: true,
   });
 
   // Get available animation names
   const animationNames = gltf.animations?.map((anim: any) => anim.name) || [];
-
-  // Leva controls for positioning the Pepe model and animations
-  const {
-    positionX,
-    positionY,
-    positionZ,
-    rotationX,
-    rotationY,
-    rotationZ,
-    scaleX,
-    scaleY,
-    scaleZ,
-    showAxes,
-    axesSize,
-    // Animation controls
-    enableAnimations,
-    selectedAnimation,
-    animationSpeed,
-    // Proximity controls
-    enableProximityTrigger,
-    proximityDistance,
-    windowPositionX,
-    windowPositionY,
-    windowPositionZ,
-    debugProximity,
-  } = useControls("Pepe Model", {
-    positionX: { value: -19.1, min: -30, max: 30, step: 0.1 },
-    positionY: { value: -2.5, min: -10, max: 20, step: 0.1 },
-    positionZ: { value: -7.4, min: -30, max: 30, step: 0.1 },
-    rotationX: { value: 0.0, min: -Math.PI, max: Math.PI, step: 0.1 },
-    rotationY: { value: 0.0, min: -Math.PI, max: Math.PI, step: 0.1 },
-    rotationZ: { value: 0.0, min: -Math.PI, max: Math.PI, step: 0.1 },
-    scaleX: { value: 100.0, min: 0.1, max: 200.0, step: 1.0 },
-    scaleY: { value: 100.0, min: 0.1, max: 200.0, step: 1.0 },
-    scaleZ: { value: 100.0, min: 0.1, max: 200.0, step: 1.0 },
-    showAxes: { value: true, label: "Mostrar Ejes" },
-    axesSize: {
-      value: 3.0,
-      min: 0.5,
-      max: 10.0,
-      step: 0.1,
-      label: "Tamaño Ejes",
-    },
-    // Animation controls (manual override)
-    enableAnimations: {
-      value: false,
-      label: "Activar Animaciones GLB (Manual)",
-    },
-    selectedAnimation: {
-      value: animationNames[0] || "none",
-      options: animationNames.length > 0 ? animationNames : ["none"],
-      label: "Animación GLB",
-    },
-    animationSpeed: {
-      value: 1.0,
-      min: 0.1,
-      max: 3.0,
-      step: 0.1,
-      label: "Velocidad GLB",
-    },
-    // Proximity controls
-    enableProximityTrigger: {
-      value: true,
-      label: "🎯 Activar por Proximidad",
-    },
-    proximityDistance: {
-      value: 5.0,
-      min: 1.0,
-      max: 15.0,
-      step: 0.5,
-      label: "Distancia de Activación",
-    },
-    windowPositionX: {
-      value: -10.0,
-      min: -30,
-      max: 30,
-      step: 0.1,
-      label: "Ventana X",
-    },
-    windowPositionY: {
-      value: 0.0,
-      min: -10,
-      max: 20,
-      step: 0.1,
-      label: "Ventana Y",
-    },
-    windowPositionZ: {
-      value: -8.0,
-      min: -30,
-      max: 30,
-      step: 0.1,
-      label: "Ventana Z",
-    },
-    debugProximity: {
-      value: false,
-      label: "🐛 Debug Proximidad",
-    },
-  });
 
   // Effect to setup model materials
   useEffect(() => {
@@ -170,53 +78,15 @@ export function Pepe(props: GroupProps) {
     }
   }, [gltf.scene]);
 
-  // Effect to add/remove axes helper
-  useEffect(() => {
-    if (groupRef.current) {
-      // Remove existing axes helper
-      const existingAxes = groupRef.current.children.find(
-        (child) => child instanceof THREE.AxesHelper
-      );
-      if (existingAxes) {
-        groupRef.current.remove(existingAxes);
-      }
-
-      // Add new axes helper if enabled
-      if (showAxes) {
-        const axesHelper = new THREE.AxesHelper(axesSize);
-        groupRef.current.add(axesHelper);
-      }
-    }
-  }, [showAxes, axesSize]);
-
-  // Manual GLB animation control (only when not auto-triggered)
-  useEffect(() => {
-    if (
-      enableAnimations &&
-      selectedAnimation &&
-      selectedAnimation !== "none" &&
-      actions[selectedAnimation] &&
-      !animationStateRef.current.autoTriggered
-    ) {
-      const action = actions[selectedAnimation];
-      action.reset().fadeIn(0.5).play();
-      action.setEffectiveTimeScale(animationSpeed);
-      return () => {
-        action.fadeOut(0.5);
-      };
-    }
-  }, [enableAnimations, selectedAnimation, animationSpeed, actions]);
-
   // Function to reset Pepe to initial position
   const resetToInitialPosition = () => {
-    console.log("🔄 Resetting Pepe to initial position");
     animationStateRef.current.isActive = false;
     animationStateRef.current.phase = "idle";
     animationStateRef.current.startTime = 0;
-    animationStateRef.current.currentPosition = { x: -19.1, y: -2.5, z: -7.4 };
+    animationStateRef.current.currentPosition = { ...INITIAL_POSITION };
     animationStateRef.current.currentRotationY = 0.0;
     animationStateRef.current.autoTriggered = false;
-    animationStateRef.current.isVisible = true; // Make Pepe visible again
+    animationStateRef.current.isVisible = true;
     proximityRef.current.sequenceTriggeredByProximity = false;
     proximityRef.current.hasTriggered = false;
 
@@ -229,16 +99,14 @@ export function Pepe(props: GroupProps) {
 
   // Function to start the complete sequence (movement + animation)
   const startCompleteSequence = () => {
-    console.log("🎬 Starting complete sequence: Movement + Animation");
-
     // Start movement sequence
     animationStateRef.current.isActive = true;
     animationStateRef.current.phase = "walking1";
     animationStateRef.current.startTime = 0;
-    animationStateRef.current.currentPosition = { x: -19.1, y: -2.5, z: -7.4 };
+    animationStateRef.current.currentPosition = { ...INITIAL_POSITION };
     animationStateRef.current.currentRotationY = 0.0;
     animationStateRef.current.autoTriggered = true;
-    animationStateRef.current.isVisible = true; // Ensure Pepe is visible during sequence
+    animationStateRef.current.isVisible = true;
     proximityRef.current.sequenceTriggeredByProximity = true;
 
     // Start GLB animation
@@ -247,9 +115,8 @@ export function Pepe(props: GroupProps) {
       if (actions[firstAnimation]) {
         const action = actions[firstAnimation];
         action.reset().fadeIn(0.5).play();
-        action.setEffectiveTimeScale(animationSpeed);
+        action.setEffectiveTimeScale(ANIMATION_SPEED);
         proximityRef.current.activeGLBAction = action;
-        console.log(`🎭 GLB Animation started: ${firstAnimation}`);
       }
     }
   };
@@ -265,36 +132,17 @@ export function Pepe(props: GroupProps) {
 
   // Unified proximity detection and animation system
   useFrame((frameState) => {
-    // Check if we're in pointer lock mode or free mode
-    const isPointerLocked = document.pointerLockElement !== null;
-
-    // Proximity detection (works regardless of pointer lock state)
-    if (enableProximityTrigger && camera) {
+    // Proximity detection
+    if (camera) {
       const cameraPosition = camera.position;
       const windowPosition = new THREE.Vector3(
-        windowPositionX,
-        windowPositionY,
-        windowPositionZ
+        WINDOW_POSITION.x,
+        WINDOW_POSITION.y,
+        WINDOW_POSITION.z
       );
       const distance = cameraPosition.distanceTo(windowPosition);
 
-      proximityRef.current.lastDistance = distance;
-      proximityRef.current.isNearWindow = distance <= proximityDistance;
-
-      // Debug info
-      if (debugProximity) {
-        console.log(
-          `📍 Camera: ${cameraPosition.x.toFixed(
-            1
-          )}, ${cameraPosition.y.toFixed(1)}, ${cameraPosition.z.toFixed(
-            1
-          )} | Window: ${windowPositionX}, ${windowPositionY}, ${windowPositionZ} | Distance: ${distance.toFixed(
-            2
-          )} | Locked: ${isPointerLocked} | Phase: ${
-            animationStateRef.current.phase
-          } | Visible: ${animationStateRef.current.isVisible}`
-        );
-      }
+      proximityRef.current.isNearWindow = distance <= PROXIMITY_DISTANCE;
 
       // Trigger complete sequence when getting close to window (only if in idle state)
       if (
@@ -302,28 +150,20 @@ export function Pepe(props: GroupProps) {
         !proximityRef.current.hasTriggered &&
         animationStateRef.current.phase === "idle"
       ) {
-        console.log(
-          `🎯 Player near window! Distance: ${distance.toFixed(
-            2
-          )} | Camera locked: ${isPointerLocked}`
-        );
         startCompleteSequence();
         proximityRef.current.hasTriggered = true;
       }
 
       // Reset to initial position when moving away from window (only if sequence completed)
       if (
-        distance > proximityDistance + 2.0 &&
+        distance > PROXIMITY_DISTANCE + 2.0 &&
         animationStateRef.current.phase === "completed"
       ) {
         resetToInitialPosition();
-        console.log(
-          "🔄 Player left zone - reset to initial position and ready for next activation"
-        );
       }
     }
 
-    // Movement sequence animation (smooth and fluid - ALWAYS applies transforms)
+    // Movement sequence animation (smooth and fluid)
     if (animationStateRef.current.isActive) {
       const state = animationStateRef.current;
 
@@ -341,7 +181,11 @@ export function Pepe(props: GroupProps) {
           const progress = Math.min(elapsed / duration, 1);
 
           // Initial position and direction
-          const startPos = new THREE.Vector3(-19.1, -2.5, -7.4);
+          const startPos = new THREE.Vector3(
+            INITIAL_POSITION.x,
+            INITIAL_POSITION.y,
+            INITIAL_POSITION.z
+          );
           const initialDirection = getForwardDirection(0); // Initial rotation is 0
           const walkDistance = 10.4; // Distance from -7.4 to 3.0 = 10.4 units
 
@@ -363,7 +207,6 @@ export function Pepe(props: GroupProps) {
           if (progress >= 1) {
             state.phase = "rotating";
             state.startTime = frameState.clock.elapsedTime * 1000;
-            console.log("✅ Phase 1 complete, moving to rotation");
           }
           break;
         }
@@ -386,7 +229,6 @@ export function Pepe(props: GroupProps) {
           if (progress >= 1) {
             state.phase = "walking2";
             state.startTime = frameState.clock.elapsedTime * 1000;
-            console.log("✅ Phase 2 complete, moving to walking2");
           }
           break;
         }
@@ -432,9 +274,6 @@ export function Pepe(props: GroupProps) {
             state.phase = "completed";
             state.isActive = false;
             state.isVisible = false; // Make Pepe disappear when sequence is completed
-            console.log(
-              "🎉 Sequence complete - Pepe disappears until player leaves zone!"
-            );
           }
           break;
         }
@@ -454,9 +293,9 @@ export function Pepe(props: GroupProps) {
           animationStateRef.current.currentPosition.z
         );
         groupRef.current.rotation.set(
-          rotationX,
+          INITIAL_ROTATION.x,
           animationStateRef.current.currentRotationY,
-          rotationZ
+          INITIAL_ROTATION.z
         );
       } else if (animationStateRef.current.phase === "completed") {
         // After completion: stay at final position (but invisible)
@@ -466,28 +305,31 @@ export function Pepe(props: GroupProps) {
           animationStateRef.current.finalPosition.z
         );
         groupRef.current.rotation.set(
-          rotationX,
+          INITIAL_ROTATION.x,
           animationStateRef.current.finalRotationY,
-          rotationZ
+          INITIAL_ROTATION.z
         );
       } else {
-        // Idle state: use manual controls
-        groupRef.current.position.set(positionX, positionY, positionZ);
-        groupRef.current.rotation.set(rotationX, rotationY, rotationZ);
+        // Idle state: use initial position
+        groupRef.current.position.set(
+          INITIAL_POSITION.x,
+          INITIAL_POSITION.y,
+          INITIAL_POSITION.z
+        );
+        groupRef.current.rotation.set(
+          INITIAL_ROTATION.x,
+          INITIAL_ROTATION.y,
+          INITIAL_ROTATION.z
+        );
       }
 
-      // ALWAYS apply scale
-      groupRef.current.scale.set(scaleX, scaleY, scaleZ);
+      // Always apply scale
+      groupRef.current.scale.set(SCALE.x, SCALE.y, SCALE.z);
     }
   });
 
   return (
-    <group
-      ref={groupRef}
-      {...props}
-      // Don't use position/rotation props, handle everything in useFrame
-      dispose={null}
-    >
+    <group ref={groupRef} {...props} dispose={null}>
       <primitive object={gltf.scene} castShadow={true} receiveShadow={true} />
     </group>
   );
