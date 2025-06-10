@@ -43,6 +43,35 @@ const pulseText = keyframes`
   }
 `;
 
+// Animación para el logo central
+const logoGlow = keyframes`
+  0%, 100% {
+    transform: scale(1.2) rotate(0deg);
+    filter: drop-shadow(0 0 10px #6600ff) drop-shadow(0 0 20px #4400aa);
+  }
+  25% {
+    transform: scale(1.5) rotate(90deg);
+    filter: drop-shadow(0 0 15px #8800ff) drop-shadow(0 0 30px #6600cc);
+  }
+  50% {
+    transform: scale(1.8) rotate(180deg);
+    filter: drop-shadow(0 0 25px #aa00ff) drop-shadow(0 0 50px #8800dd);
+  }
+  75% {
+    transform: scale(1.5) rotate(270deg);
+    filter: drop-shadow(0 0 15px #8800ff) drop-shadow(0 0 30px #6600cc);
+  }
+`;
+
+const logoFloat = keyframes`
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+`;
+
 // Styled Components
 const LoaderContainer = styled.div`
   position: fixed;
@@ -91,6 +120,34 @@ const EventHorizon = styled.div`
     0 0 150px 60px #2200ff, inset 0 0 60px #000;
   z-index: 100;
   animation: ${pulsate} 2s ease-in-out infinite;
+`;
+
+// Logo container en el centro del Event Horizon
+const LogoContainer = styled.div`
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 150;
+  animation: ${logoFloat} 3s ease-in-out infinite;
+`;
+
+const LogoSvg = styled.img`
+  width: 35px;
+  height: 35px;
+  filter: brightness(0) invert(1);
+  animation: ${logoGlow} 4s ease-in-out infinite;
+  transition: all 0.3s ease;
+  cursor: pointer;
+
+  &:hover {
+    transform: scale(2.2) !important;
+    filter: brightness(0) invert(1) drop-shadow(0 0 30px #ff00ff)
+      drop-shadow(0 0 60px #aa00ff) !important;
+    animation-play-state: paused;
+  }
 `;
 
 const AccretionDisk = styled.div`
@@ -323,6 +380,10 @@ export const BlackHoleLoader: React.FC<BlackHoleLoaderProps> = ({
         <GravitationalLensing />
         <AccretionDisk />
         <EventHorizon />
+
+        <LogoContainer>
+          <LogoSvg src="/LogoRHackers.svg" alt="RuralHackers Logo" />
+        </LogoContainer>
 
         <LoadingPercentage $progress={displayProgress}>
           {displayProgress}%
