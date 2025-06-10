@@ -230,6 +230,15 @@ export function Pepe(props: GroupProps) {
     }
   };
 
+  // Helper function to calculate forward direction based on rotation
+  const getForwardDirection = (rotationY: number) => {
+    return new THREE.Vector3(
+      Math.sin(rotationY),
+      0,
+      Math.cos(rotationY)
+    ).normalize();
+  };
+
   // Unified proximity detection and animation system
   useFrame((frameState) => {
     // Check if we're in pointer lock mode or free mode
@@ -305,11 +314,14 @@ export function Pepe(props: GroupProps) {
 
       switch (state.phase) {
         case "walking1": {
-          // Phase 1: Move from Z -7.4 to -5 (duration: 3 seconds)
+          // Phase 1: Walk forward in initial direction (duration: 5 seconds)
           const duration = 5.0;
           const progress = Math.min(elapsed / duration, 1);
-          const startZ = -7.4;
-          const endZ = 3.0;
+
+          // Initial position and direction
+          const startPos = new THREE.Vector3(-19.1, -2.5, -7.4);
+          const initialDirection = getForwardDirection(0); // Initial rotation is 0
+          const walkDistance = 10.4; // Distance from -7.4 to 3.0 = 10.4 units
 
           // Smooth eased interpolation for fluid movement
           const easedProgress =
@@ -317,7 +329,14 @@ export function Pepe(props: GroupProps) {
               ? 2 * progress * progress
               : 1 - Math.pow(-2 * progress + 2, 2) / 2;
 
-          state.currentPosition.z = startZ + (endZ - startZ) * easedProgress;
+          // Calculate new position by moving forward in the initial direction
+          const forwardMovement = initialDirection
+            .clone()
+            .multiplyScalar(walkDistance * easedProgress);
+          const newPosition = startPos.clone().add(forwardMovement);
+
+          state.currentPosition.x = newPosition.x;
+          state.currentPosition.z = newPosition.z;
 
           if (progress >= 1) {
             state.phase = "rotating";
@@ -351,11 +370,20 @@ export function Pepe(props: GroupProps) {
         }
 
         case "walking2": {
-          // Phase 3: Move from Z -5 to -3 (duration: 2 seconds)
+          // Phase 3: Walk forward in NEW direction after rotation (duration: 2 seconds)
           const duration = 2.0;
           const progress = Math.min(elapsed / duration, 1);
-          const startZ = -3.0;
-          const endZ = -1.0;
+
+          // Start from current position after rotation
+          const startPos = new THREE.Vector3(
+            state.currentPosition.x,
+            state.currentPosition.y,
+            state.currentPosition.z
+          );
+
+          // Get forward direction based on current rotation (-0.9)
+          const currentDirection = getForwardDirection(state.currentRotationY);
+          const walkDistance = 2.0; // Distance to walk in the new direction
 
           // Smooth final movement
           const easedProgress =
@@ -363,7 +391,14 @@ export function Pepe(props: GroupProps) {
               ? 2 * progress * progress
               : 1 - Math.pow(-2 * progress + 2, 2) / 2;
 
-          state.currentPosition.z = startZ + (endZ - startZ) * easedProgress;
+          // Calculate new position by moving forward in the rotated direction
+          const forwardMovement = currentDirection
+            .clone()
+            .multiplyScalar(walkDistance * easedProgress);
+          const newPosition = startPos.clone().add(forwardMovement);
+
+          state.currentPosition.x = newPosition.x;
+          state.currentPosition.z = newPosition.z;
 
           if (progress >= 1) {
             state.phase = "idle";
