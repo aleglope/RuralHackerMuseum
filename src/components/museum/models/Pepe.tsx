@@ -7,7 +7,7 @@ Positioned near the window view area with independent positioning controls
 import React, { useEffect, useRef } from "react";
 import { useGLTF, useAnimations } from "@react-three/drei";
 import { MODEL_PATHS } from "../../../config/models";
-import { GroupProps, useFrame } from "@react-three/fiber";
+import { GroupProps, useFrame, useThree } from "@react-three/fiber";
 import { useControls } from "leva";
 import * as THREE from "three";
 
@@ -15,15 +15,30 @@ import * as THREE from "three";
 export function Pepe(props: GroupProps) {
   const gltf = useGLTF(MODEL_PATHS.ARCHITECTURE.PEPE);
   const groupRef = useRef<THREE.Group>(null);
-  const { actions } = useAnimations(gltf.animations, groupRef);
-  const modelCenterRef = useRef<THREE.Vector3>(new THREE.Vector3());
-  const clockRef = useRef(0);
+  const { actions } = useAnimations(gltf.animations, gltf.scene);
+  const { camera } = useThree();
+
+  // Proximity detection state
+  const proximityRef = useRef({
+    hasTriggered: false,
+    isNearWindow: false,
+    lastDistance: Infinity,
+  });
+
+  // Animation sequence state
+  const animationStateRef = useRef({
+    isActive: false,
+    phase: "idle", // 'walking1', 'rotating', 'walking2', 'idle'
+    startTime: 0,
+    currentPosition: { x: -19.1, y: -2.5, z: -7.4 },
+    currentRotationY: 0.0,
+    autoTriggered: false, // Track if triggered by proximity
+  });
 
   // Get available animation names
   const animationNames = gltf.animations?.map((anim: any) => anim.name) || [];
 
   // Leva controls for positioning the Pepe model and animations
-  // Positioned near the window view area but with its own independent controls
   const {
     positionX,
     positionY,
@@ -40,20 +55,23 @@ export function Pepe(props: GroupProps) {
     enableAnimations,
     selectedAnimation,
     animationSpeed,
-    proceduralWalk,
-    walkSpeed,
-    tailWag,
-    breathe,
+    startMovementSequence,
+    // Proximity controls
+    enableProximityTrigger,
+    proximityDistance,
+    windowPositionX,
+    windowPositionY,
+    windowPositionZ,
   } = useControls("Pepe Model", {
-    positionX: { value: -15.0, min: -30, max: 10, step: 0.1 },
-    positionY: { value: -2.2, min: -5, max: 20, step: 0.1 },
-    positionZ: { value: -9.0, min: -15, max: 15, step: 0.1 },
-    rotationX: { value: 0.3, min: -Math.PI, max: Math.PI, step: 0.1 },
-    rotationY: { value: 2.5, min: -Math.PI, max: Math.PI, step: 0.1 },
-    rotationZ: { value: -0.1, min: -Math.PI, max: Math.PI, step: 0.1 },
-    scaleX: { value: 1.3, min: 0.1, max: 10.0, step: 0.1 },
-    scaleY: { value: 1.3, min: 0.1, max: 10.0, step: 0.1 },
-    scaleZ: { value: 1.3, min: 0.1, max: 10.0, step: 0.1 },
+    positionX: { value: -19.1, min: -30, max: 30, step: 0.1 },
+    positionY: { value: -2.5, min: -10, max: 20, step: 0.1 },
+    positionZ: { value: -7.4, min: -30, max: 30, step: 0.1 },
+    rotationX: { value: 0.0, min: -Math.PI, max: Math.PI, step: 0.1 },
+    rotationY: { value: 0.0, min: -Math.PI, max: Math.PI, step: 0.1 },
+    rotationZ: { value: 0.0, min: -Math.PI, max: Math.PI, step: 0.1 },
+    scaleX: { value: 100.0, min: 0.1, max: 200.0, step: 1.0 },
+    scaleY: { value: 100.0, min: 0.1, max: 200.0, step: 1.0 },
+    scaleZ: { value: 100.0, min: 0.1, max: 200.0, step: 1.0 },
     showAxes: { value: true, label: "Mostrar Ejes" },
     axesSize: {
       value: 3.0,
@@ -63,62 +81,76 @@ export function Pepe(props: GroupProps) {
       label: "Tamaño Ejes",
     },
     // Animation controls
-    enableAnimations: { value: false, label: "Activar Animaciones" },
+    enableAnimations: { value: false, label: "Activar Animaciones GLB" },
     selectedAnimation: {
       value: animationNames[0] || "none",
       options: animationNames.length > 0 ? animationNames : ["none"],
-      label: "Animación",
+      label: "Animación GLB",
     },
     animationSpeed: {
       value: 1.0,
       min: 0.1,
       max: 3.0,
       step: 0.1,
-      label: "Velocidad",
+      label: "Velocidad GLB",
     },
-    proceduralWalk: { value: false, label: "Caminar Procedural" },
-    walkSpeed: {
-      value: 1.0,
-      min: 0.1,
-      max: 5.0,
+    startMovementSequence: {
+      value: false,
+      label: "Iniciar Secuencia Movimiento",
+    },
+    // Proximity controls
+    enableProximityTrigger: {
+      value: true,
+      label: "Activar por Proximidad",
+    },
+    proximityDistance: {
+      value: 5.0,
+      min: 1.0,
+      max: 15.0,
+      step: 0.5,
+      label: "Distancia de Activación",
+    },
+    windowPositionX: {
+      value: -10.0,
+      min: -30,
+      max: 30,
       step: 0.1,
-      label: "Vel. Caminar",
+      label: "Ventana X",
     },
-    tailWag: { value: false, label: "Mover Cola" },
-    breathe: { value: false, label: "Respirar" },
+    windowPositionY: {
+      value: 0.0,
+      min: -10,
+      max: 20,
+      step: 0.1,
+      label: "Ventana Y",
+    },
+    windowPositionZ: {
+      value: -8.0,
+      min: -30,
+      max: 30,
+      step: 0.1,
+      label: "Ventana Z",
+    },
   });
 
-  // Effect to modify model materials and setup
+  // Effect to setup model materials
   useEffect(() => {
     if (gltf.scene) {
-      const clonedScene = gltf.scene.clone();
-
-      // Calculate model center for proper rotation pivot
-      const box = new THREE.Box3().setFromObject(clonedScene);
-      const center = box.getCenter(new THREE.Vector3());
-      modelCenterRef.current.copy(center);
-
-      // Center the model by offsetting all children
-      clonedScene.position.sub(center);
-
-      // Traverse all meshes in the model
-      clonedScene.traverse((child) => {
+      // Traverse all meshes in the model to enhance materials
+      gltf.scene.traverse((child) => {
         if (child instanceof THREE.Mesh && child.material) {
-          // Clone materials to avoid modifying the original
+          // Enhance materials without cloning to preserve references
           if (Array.isArray(child.material)) {
-            child.material = child.material.map((mat) => {
-              const clonedMat = mat.clone();
-              // Enhance the material for better visual quality
-              if (clonedMat instanceof THREE.MeshStandardMaterial) {
-                clonedMat.envMapIntensity = 1.2;
+            child.material.forEach((mat) => {
+              if (mat instanceof THREE.MeshStandardMaterial) {
+                mat.envMapIntensity = 1.2;
+                mat.needsUpdate = true;
               }
-              return clonedMat;
             });
           } else {
-            child.material = child.material.clone();
-            // Enhance the material for better visual quality
             if (child.material instanceof THREE.MeshStandardMaterial) {
               child.material.envMapIntensity = 1.2;
+              child.material.needsUpdate = true;
             }
           }
 
@@ -127,9 +159,6 @@ export function Pepe(props: GroupProps) {
           child.receiveShadow = true;
         }
       });
-
-      // Update scene reference
-      gltf.scene = clonedScene;
     }
   }, [gltf.scene]);
 
@@ -152,7 +181,7 @@ export function Pepe(props: GroupProps) {
     }
   }, [showAxes, axesSize]);
 
-  // Animation effects
+  // Animation effects for GLB animations
   useEffect(() => {
     if (
       enableAnimations &&
@@ -169,34 +198,146 @@ export function Pepe(props: GroupProps) {
     }
   }, [enableAnimations, selectedAnimation, animationSpeed, actions]);
 
-  // Procedural animations using useFrame
-  useFrame((state) => {
-    if (!groupRef.current) return;
+  // Effect to start movement sequence
+  useEffect(() => {
+    if (startMovementSequence && !animationStateRef.current.isActive) {
+      animationStateRef.current.isActive = true;
+      animationStateRef.current.phase = "walking1";
+      animationStateRef.current.startTime = 0; // Will be set in useFrame
+      animationStateRef.current.currentPosition = {
+        x: -19.1,
+        y: -2.5,
+        z: -7.4,
+      };
+      animationStateRef.current.currentRotationY = 0.0;
+      console.log("Starting movement sequence");
+    }
+  }, [startMovementSequence]);
 
-    clockRef.current += state.clock.getDelta();
+  // Proximity detection and auto-trigger system
+  useFrame((frameState) => {
+    // Proximity detection
+    if (enableProximityTrigger && camera) {
+      const cameraPosition = camera.position;
+      const windowPosition = new THREE.Vector3(
+        windowPositionX,
+        windowPositionY,
+        windowPositionZ
+      );
+      const distance = cameraPosition.distanceTo(windowPosition);
 
-    // Procedural walking animation (simple bobbing)
-    if (proceduralWalk) {
-      const bobAmount = 0.2;
-      const walkCycle = Math.sin(clockRef.current * walkSpeed * 4) * bobAmount;
-      groupRef.current.position.y =
-        (groupRef.current.position.y || 0) + walkCycle * 0.1;
+      proximityRef.current.lastDistance = distance;
+      proximityRef.current.isNearWindow = distance <= proximityDistance;
+
+      // Trigger animation when getting close to window
+      if (
+        proximityRef.current.isNearWindow &&
+        !proximityRef.current.hasTriggered
+      ) {
+        console.log(
+          `Player near window! Distance: ${distance.toFixed(
+            2
+          )} - Triggering animation`
+        );
+
+        // Auto-start the movement sequence
+        if (!animationStateRef.current.isActive) {
+          animationStateRef.current.isActive = true;
+          animationStateRef.current.phase = "walking1";
+          animationStateRef.current.startTime = 0;
+          animationStateRef.current.currentPosition = {
+            x: -19.1,
+            y: -2.5,
+            z: -7.4,
+          };
+          animationStateRef.current.currentRotationY = 0.0;
+          animationStateRef.current.autoTriggered = true;
+        }
+
+        // Auto-start GLB animation
+        if (animationNames.length > 0 && !enableAnimations) {
+          const firstAnimation = animationNames[0];
+          if (actions[firstAnimation]) {
+            const action = actions[firstAnimation];
+            action.reset().fadeIn(0.5).play();
+            action.setEffectiveTimeScale(animationSpeed);
+          }
+        }
+
+        proximityRef.current.hasTriggered = true;
+      }
+
+      // Reset trigger when moving away from window
+      if (distance > proximityDistance + 2.0) {
+        // Add hysteresis
+        proximityRef.current.hasTriggered = false;
+      }
     }
 
-    // Tail wagging (if we can find tail bones, otherwise simulate with rotation)
-    if (tailWag) {
-      const wagAmount = 0.3;
-      const wagCycle = Math.sin(clockRef.current * 8) * wagAmount;
-      // This would work better with bone manipulation, but we'll use overall rotation for now
-      groupRef.current.rotation.y += wagCycle * 0.01;
+    // Movement sequence animation
+    if (!animationStateRef.current.isActive) return;
+
+    const state = animationStateRef.current;
+
+    // Initialize start time on first frame
+    if (state.startTime === 0) {
+      state.startTime = frameState.clock.elapsedTime * 1000;
     }
 
-    // Breathing effect (slight scale animation)
-    if (breathe) {
-      const breathAmount = 0.02;
-      const breathCycle = Math.sin(clockRef.current * 2) * breathAmount;
-      const scale = 1 + breathCycle;
-      groupRef.current.scale.setScalar(scale);
+    const elapsed = frameState.clock.elapsedTime - state.startTime / 1000;
+
+    switch (state.phase) {
+      case "walking1": {
+        // Phase 1: Move from Z -7.4 to -5 (duration: 3 seconds)
+        const duration = 3.0;
+        const progress = Math.min(elapsed / duration, 1);
+        const startZ = -7.4;
+        const endZ = -5.0;
+
+        // Linear interpolation
+        state.currentPosition.z = startZ + (endZ - startZ) * progress;
+
+        if (progress >= 1) {
+          state.phase = "rotating";
+          state.startTime = frameState.clock.elapsedTime * 1000; // Convert back to milliseconds
+          console.log("Phase 1 complete, moving to rotation");
+        }
+        break;
+      }
+
+      case "rotating": {
+        // Phase 2: Rotate Y to -0.9 (duration: 2 seconds)
+        const duration = 2.0;
+        const progress = Math.min(elapsed / duration, 1);
+        const startY = 0.0;
+        const endY = -0.9;
+
+        state.currentRotationY = startY + (endY - startY) * progress;
+
+        if (progress >= 1) {
+          state.phase = "walking2";
+          state.startTime = frameState.clock.elapsedTime * 1000;
+          console.log("Phase 2 complete, moving to walking2");
+        }
+        break;
+      }
+
+      case "walking2": {
+        // Phase 3: Move from Z -5 to -3 (duration: 2 seconds)
+        const duration = 2.0;
+        const progress = Math.min(elapsed / duration, 1);
+        const startZ = -5.0;
+        const endZ = -3.0;
+
+        state.currentPosition.z = startZ + (endZ - startZ) * progress;
+
+        if (progress >= 1) {
+          state.phase = "idle";
+          state.isActive = false;
+          console.log("Sequence complete");
+        }
+        break;
+      }
     }
   });
 
@@ -204,8 +345,20 @@ export function Pepe(props: GroupProps) {
     <group
       ref={groupRef}
       {...props}
-      position={[positionX, positionY, positionZ]}
-      rotation={[rotationX, rotationY, rotationZ]}
+      position={
+        animationStateRef.current.isActive
+          ? [
+              animationStateRef.current.currentPosition.x,
+              animationStateRef.current.currentPosition.y,
+              animationStateRef.current.currentPosition.z,
+            ]
+          : [positionX, positionY, positionZ]
+      }
+      rotation={
+        animationStateRef.current.isActive
+          ? [rotationX, animationStateRef.current.currentRotationY, rotationZ]
+          : [rotationX, rotationY, rotationZ]
+      }
       scale={[scaleX, scaleY, scaleZ]}
       dispose={null}
     >
