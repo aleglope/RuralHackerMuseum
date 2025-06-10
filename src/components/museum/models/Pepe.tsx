@@ -30,11 +30,14 @@ export function Pepe(props: GroupProps) {
   // Animation sequence state
   const animationStateRef = useRef({
     isActive: false,
-    phase: "idle", // 'walking1', 'rotating', 'walking2', 'idle'
+    phase: "idle", // 'walking1', 'rotating', 'walking2', 'completed', 'idle'
     startTime: 0,
     currentPosition: { x: -19.1, y: -2.5, z: -7.4 },
     currentRotationY: 0.0,
     autoTriggered: false, // Track if triggered by proximity
+    finalPosition: { x: 0, y: 0, z: 0 }, // Store final position after sequence
+    finalRotationY: 0, // Store final rotation after sequence
+    isVisible: true, // Control visibility of the model
   });
 
   // Get available animation names
@@ -204,6 +207,26 @@ export function Pepe(props: GroupProps) {
     }
   }, [enableAnimations, selectedAnimation, animationSpeed, actions]);
 
+  // Function to reset Pepe to initial position
+  const resetToInitialPosition = () => {
+    console.log("🔄 Resetting Pepe to initial position");
+    animationStateRef.current.isActive = false;
+    animationStateRef.current.phase = "idle";
+    animationStateRef.current.startTime = 0;
+    animationStateRef.current.currentPosition = { x: -19.1, y: -2.5, z: -7.4 };
+    animationStateRef.current.currentRotationY = 0.0;
+    animationStateRef.current.autoTriggered = false;
+    animationStateRef.current.isVisible = true; // Make Pepe visible again
+    proximityRef.current.sequenceTriggeredByProximity = false;
+    proximityRef.current.hasTriggered = false;
+
+    // Stop GLB animation
+    if (proximityRef.current.activeGLBAction) {
+      proximityRef.current.activeGLBAction.fadeOut(0.5);
+      proximityRef.current.activeGLBAction = null;
+    }
+  };
+
   // Function to start the complete sequence (movement + animation)
   const startCompleteSequence = () => {
     console.log("🎬 Starting complete sequence: Movement + Animation");
@@ -215,6 +238,7 @@ export function Pepe(props: GroupProps) {
     animationStateRef.current.currentPosition = { x: -19.1, y: -2.5, z: -7.4 };
     animationStateRef.current.currentRotationY = 0.0;
     animationStateRef.current.autoTriggered = true;
+    animationStateRef.current.isVisible = true; // Ensure Pepe is visible during sequence
     proximityRef.current.sequenceTriggeredByProximity = true;
 
     // Start GLB animation
@@ -266,15 +290,17 @@ export function Pepe(props: GroupProps) {
             1
           )} | Window: ${windowPositionX}, ${windowPositionY}, ${windowPositionZ} | Distance: ${distance.toFixed(
             2
-          )} | Locked: ${isPointerLocked}`
+          )} | Locked: ${isPointerLocked} | Phase: ${
+            animationStateRef.current.phase
+          } | Visible: ${animationStateRef.current.isVisible}`
         );
       }
 
-      // Trigger complete sequence when getting close to window
+      // Trigger complete sequence when getting close to window (only if in idle state)
       if (
         proximityRef.current.isNearWindow &&
         !proximityRef.current.hasTriggered &&
-        !animationStateRef.current.isActive
+        animationStateRef.current.phase === "idle"
       ) {
         console.log(
           `🎯 Player near window! Distance: ${distance.toFixed(
@@ -285,19 +311,15 @@ export function Pepe(props: GroupProps) {
         proximityRef.current.hasTriggered = true;
       }
 
-      // Reset trigger when moving away from window (after sequence completes)
+      // Reset to initial position when moving away from window (only if sequence completed)
       if (
         distance > proximityDistance + 2.0 &&
-        !animationStateRef.current.isActive
+        animationStateRef.current.phase === "completed"
       ) {
-        proximityRef.current.hasTriggered = false;
-        if (proximityRef.current.activeGLBAction) {
-          proximityRef.current.activeGLBAction.fadeOut(0.5);
-          proximityRef.current.activeGLBAction = null;
-        }
-        animationStateRef.current.autoTriggered = false;
-        proximityRef.current.sequenceTriggeredByProximity = false;
-        console.log("🔄 Reset trigger - ready for next activation");
+        resetToInitialPosition();
+        console.log(
+          "🔄 Player left zone - reset to initial position and ready for next activation"
+        );
       }
     }
 
@@ -401,37 +423,60 @@ export function Pepe(props: GroupProps) {
           state.currentPosition.z = newPosition.z;
 
           if (progress >= 1) {
-            state.phase = "idle";
+            // Store final position and rotation
+            state.finalPosition.x = state.currentPosition.x;
+            state.finalPosition.y = state.currentPosition.y;
+            state.finalPosition.z = state.currentPosition.z;
+            state.finalRotationY = state.currentRotationY;
+
+            state.phase = "completed";
             state.isActive = false;
-            console.log("🎉 Sequence complete - Pepe has finished his walk!");
+            state.isVisible = false; // Make Pepe disappear when sequence is completed
+            console.log(
+              "🎉 Sequence complete - Pepe disappears until player leaves zone!"
+            );
           }
           break;
         }
       }
+    }
 
-      // ALWAYS apply transforms when sequence is active - regardless of pointer lock
-      if (groupRef.current) {
+    // Apply transforms based on current state
+    if (groupRef.current) {
+      // Control visibility
+      groupRef.current.visible = animationStateRef.current.isVisible;
+
+      if (animationStateRef.current.isActive) {
+        // During animation: use current animated position
         groupRef.current.position.set(
-          state.currentPosition.x,
-          state.currentPosition.y,
-          state.currentPosition.z
+          animationStateRef.current.currentPosition.x,
+          animationStateRef.current.currentPosition.y,
+          animationStateRef.current.currentPosition.z
         );
         groupRef.current.rotation.set(
           rotationX,
-          state.currentRotationY,
+          animationStateRef.current.currentRotationY,
           rotationZ
         );
-      }
-    } else {
-      // When sequence is not active, use manual controls
-      if (groupRef.current) {
+      } else if (animationStateRef.current.phase === "completed") {
+        // After completion: stay at final position (but invisible)
+        groupRef.current.position.set(
+          animationStateRef.current.finalPosition.x,
+          animationStateRef.current.finalPosition.y,
+          animationStateRef.current.finalPosition.z
+        );
+        groupRef.current.rotation.set(
+          rotationX,
+          animationStateRef.current.finalRotationY,
+          rotationZ
+        );
+      } else {
+        // Idle state: use manual controls
         groupRef.current.position.set(positionX, positionY, positionZ);
         groupRef.current.rotation.set(rotationX, rotationY, rotationZ);
       }
-    }
 
-    // ALWAYS apply scale
-    if (groupRef.current) {
+      // ALWAYS apply scale
       groupRef.current.scale.set(scaleX, scaleY, scaleZ);
     }
   });

@@ -34,9 +34,9 @@ export function WindowView(props: GroupProps) {
     axesSize,
   } = useControls("Window View", {
     positionX: { value: -25.0, min: -200, max: 200, step: 0.1 },
-    positionY: { value: 19.9, min: -50, max: 50, step: 0.1 },
+    positionY: { value: 18.5, min: -50, max: 50, step: 0.1 },
     positionZ: { value: 6.0, min: -2000, max: 1000, step: 1.0 },
-    rotationX: { value: 1.5, min: -Math.PI, max: Math.PI, step: 0.1 },
+    rotationX: { value: 1.6, min: -Math.PI, max: Math.PI, step: 0.1 },
     rotationY: {
       value: -3.141592653589793,
       min: -Math.PI,
