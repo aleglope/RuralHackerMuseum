@@ -17,45 +17,45 @@ import {
 import * as THREE from "three";
 import SafeEnvironment from "../../components/ui/SafeEnvironment";
 
-// Configuración de la escena de niebla
+// Configuración de la escena de niebla - EXPANDIDA PARA INFINITUD
 const FOG_SCENE_CONFIG = {
   camera: {
     position: [0, 12, 5] as [number, number, number],
     fov: 75,
     near: 0.1,
-    far: 1000,
+    far: 2000, // ✅ Aumentado para ver más lejos
   },
   fog: {
     color: 0x87ceeb,
-    near: 10,
-    far: 80,
+    near: 15,
+    far: 150, // ✅ Niebla más extensa
   },
   player: {
-    speed: 8,
+    speed: 12, // ✅ Velocidad aumentada para el área más grande
     height: 12,
     friction: 0.9,
   },
   particles: {
-    count: 2000,
+    count: 8000, // ✅ 4x más partículas para mayor densidad
     area: {
-      width: 200,
-      height: 200,
+      width: 1000, // ✅ 5x más ancho - área MASIVA
+      height: 1000, // ✅ 5x más alto - área MASIVA
     },
     height: {
-      min: -0.5,
-      max: 2.5,
+      min: -2.0, // ✅ Niebla más baja
+      max: 8.0, // ✅ Niebla más alta
     },
     size: {
-      min: 20,
-      max: 40,
+      min: 15, // ✅ Partículas más pequeñas para más densidad
+      max: 60, // ✅ Algunas partículas más grandes
     },
     opacity: {
-      min: 0.2,
-      max: 0.8,
+      min: 0.1, // ✅ Más transparentes para mejor blending
+      max: 0.6, // ✅ Menos opacas para efecto más sutil
     },
     speed: {
-      base: 0.02,
-      variation: 0.005,
+      base: 0.015, // ✅ Movimiento más lento para área grande
+      variation: 0.008, // ✅ Más variación en velocidades
     },
   },
 } as const;
@@ -87,10 +87,14 @@ const fogFragmentShader = `
   
   void main() {
     float distanceToCenter = distance(gl_PointCoord, vec2(0.5));
-    float alpha = 1.0 - smoothstep(0.0, 0.5, distanceToCenter);
+    
+    // ✅ MEJORADO: Gradiente más suave para partículas más naturales
+    float alpha = 1.0 - smoothstep(0.0, 0.6, distanceToCenter);
+    alpha = pow(alpha, 2.0); // ✅ Curva exponencial para mejor blending
     alpha *= vOpacity;
     
-    gl_FragColor = vec4(0.9, 0.95, 1.0, alpha * 0.3);
+    // ✅ OPTIMIZADO: Menos intensidad para manejar más partículas
+    gl_FragColor = vec4(0.9, 0.95, 1.0, alpha * 0.15);
   }
 `;
 
@@ -141,29 +145,49 @@ function FogParticles() {
     const time = state.clock.getElapsedTime();
     const { area, height } = FOG_SCENE_CONFIG.particles;
 
+    // ✅ OPTIMIZACIÓN: Solo actualizar cada 2 frames para mejor rendimiento
+    const shouldUpdate = Math.floor(time * 60) % 2 === 0;
+
     for (let i = 0; i < particleCount; i++) {
       const i3 = i * 3;
 
-      // Movimiento sutil de las partículas - EXACTO DEL ORIGINAL
-      positions[i3] += velocities[i3] + Math.sin(time * 0.5 + i * 0.01) * 0.001;
-      positions[i3 + 1] +=
-        velocities[i3 + 1] + Math.sin(time * 0.3 + i * 0.02) * 0.0005;
-      positions[i3 + 2] +=
-        velocities[i3 + 2] + Math.cos(time * 0.4 + i * 0.015) * 0.001;
-
-      // Mantener las partículas dentro de los límites
-      if (Math.abs(positions[i3]) > area.width / 2) {
-        positions[i3] = (Math.random() - 0.5) * area.width;
+      if (shouldUpdate) {
+        // Movimiento sutil de las partículas - OPTIMIZADO para área grande
+        const waveIntensity = 0.002; // ✅ Más intenso para área grande
+        positions[i3] +=
+          velocities[i3] + Math.sin(time * 0.4 + i * 0.008) * waveIntensity;
+        positions[i3 + 1] +=
+          velocities[i3 + 1] +
+          Math.sin(time * 0.25 + i * 0.015) * (waveIntensity * 0.5);
+        positions[i3 + 2] +=
+          velocities[i3 + 2] +
+          Math.cos(time * 0.35 + i * 0.012) * waveIntensity;
       }
-      if (Math.abs(positions[i3 + 2]) > area.height / 2) {
-        positions[i3 + 2] = (Math.random() - 0.5) * area.height;
+
+      // ✅ CULLING INTELIGENTE: Mantener partículas en área expandida
+      const maxDistance = area.width / 2;
+
+      if (Math.abs(positions[i3]) > maxDistance) {
+        // Reposicionar en el lado opuesto para efecto infinito
+        positions[i3] =
+          positions[i3] > 0 ? -maxDistance + 50 : maxDistance - 50;
+      }
+      if (Math.abs(positions[i3 + 2]) > maxDistance) {
+        // Reposicionar en el lado opuesto para efecto infinito
+        positions[i3 + 2] =
+          positions[i3 + 2] > 0 ? -maxDistance + 50 : maxDistance - 50;
       }
       if (positions[i3 + 1] > height.max) {
         positions[i3 + 1] = height.min;
       }
+      if (positions[i3 + 1] < height.min - 1) {
+        positions[i3 + 1] = height.max;
+      }
     }
 
-    pointsRef.current.geometry.attributes.position.needsUpdate = true;
+    if (shouldUpdate) {
+      pointsRef.current.geometry.attributes.position.needsUpdate = true;
+    }
   });
 
   return (
@@ -238,11 +262,11 @@ function Player() {
   return null;
 }
 
-// Componente del suelo
+// Componente del suelo - EXPANDIDO PARA COINCIDIR CON ÁREA DE NIEBLA
 function Ground() {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.1, 0]} receiveShadow>
-      <planeGeometry args={[300, 300]} />
+      <planeGeometry args={[1500, 1500]} /> {/* ✅ 5x más grande que antes */}
       <meshStandardMaterial color="#ffffff" roughness={1} metalness={0} />
     </mesh>
   );
@@ -314,6 +338,19 @@ function FogSceneContent() {
       <Environment />
       <Ground />
       <FogParticles />
+      {/* ✅ CAPAS ADICIONALES DE NIEBLA para mayor densidad */}
+      <group position={[250, 0, 250]}>
+        <FogParticles />
+      </group>
+      <group position={[-250, 0, -250]}>
+        <FogParticles />
+      </group>
+      <group position={[250, 0, -250]}>
+        <FogParticles />
+      </group>
+      <group position={[-250, 0, 250]}>
+        <FogParticles />
+      </group>
       <SafeEnvironment preset="sunset" fallback="studio" />
     </>
   );
