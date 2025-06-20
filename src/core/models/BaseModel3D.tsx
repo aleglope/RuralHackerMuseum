@@ -13,6 +13,7 @@ import PepeBehaviors from "./behaviors/PepeBehaviors";
 import WindowBehaviors from "./behaviors/WindowBehaviors";
 import WindowViewBehaviors from "./behaviors/WindowViewBehaviors";
 import AnceuBehaviors from "./behaviors/AnceuBehaviors";
+import ManOnForestBehaviors from "./behaviors/ManOnForestBehaviors";
 
 // Utils and types
 import { getModelPosition, getModelRotation, getModelScale } from "./utils";
@@ -60,6 +61,11 @@ export const BaseModel3D: React.FC<BaseModel3DProps> = ({
   const anceuBehaviors =
     config.type === "ANCEU"
       ? AnceuBehaviors.useAnceuBehavior(config, gltf, groupRef)
+      : null;
+
+  const manOnForestBehaviors =
+    config.type === "MAN_ON_FOREST"
+      ? ManOnForestBehaviors.useManOnForestBehavior(config, gltf, groupRef)
       : null;
 
   useEffect(() => {
@@ -134,6 +140,37 @@ export const BaseModel3D: React.FC<BaseModel3DProps> = ({
     return (
       <group ref={groupRef} {...groupProps} dispose={null}>
         <primitive object={anceuBehaviors.transformedScene} />
+      </group>
+    );
+  }
+
+  // MAN_ON_FOREST - Rendering with Leva controls
+  if (config.type === "MAN_ON_FOREST" && manOnForestBehaviors) {
+    return (
+      <group
+        ref={groupRef}
+        {...groupProps}
+        position={[
+          manOnForestBehaviors.position.x,
+          manOnForestBehaviors.position.y,
+          manOnForestBehaviors.position.z,
+        ]}
+        rotation={[
+          manOnForestBehaviors.rotation.x,
+          manOnForestBehaviors.rotation.y,
+          manOnForestBehaviors.rotation.z,
+        ]}
+        scale={[
+          manOnForestBehaviors.scale.x,
+          manOnForestBehaviors.scale.y,
+          manOnForestBehaviors.scale.z,
+        ]}
+        dispose={null}
+      >
+        <primitive object={manOnForestBehaviors.modifiedScene} />
+        {manOnForestBehaviors.showAxes && (
+          <axesHelper args={[manOnForestBehaviors.axesSize]} />
+        )}
       </group>
     );
   }

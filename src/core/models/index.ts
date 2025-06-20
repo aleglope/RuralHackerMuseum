@@ -32,6 +32,7 @@ export {
   WindowBehaviors,
   WindowViewBehaviors,
   AnceuBehaviors,
+  ManOnForestBehaviors,
 } from "./behaviors";
 
 // ===== UTILITIES =====

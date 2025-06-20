@@ -37,6 +37,7 @@ export const MODEL_PATHS = {
   },
   MAIN: {
     ANCEU: "/models/Anceu-Coliving-30-5-2025-textured_model.glb",
+    MAN_ON_FOREST: "/models/ManOnForest.glb",
   },
 } as const;
 
@@ -156,6 +157,21 @@ export const BENCH_CONFIG = {
   path: MODEL_PATHS.FURNITURE.METAL_BENCH,
   scale: { x: 0.45, y: 0.5, z: 0.4 },
   material: "Metal", // Material auto-generated name
+};
+
+// ManOnForest - Configuración para FogScene con posiciones optimizadas
+export const MAN_ON_FOREST_CONFIG = {
+  position: { x: 9, y: 40, z: 141 }, // Posición optimizada ajustada
+  rotation: { x: -1.5, y: 0, z: -0.2 }, // Rotación optimizada
+  scale: { x: 8, y: 8, z: 8 }, // Escala grande para ser visible en la niebla
+  envMapIntensity: 1.2,
+  levaControls: {
+    position: { x: 9, y: 40, z: 141 },
+    rotation: { x: -1.5, y: 0, z: -0.2 },
+    scale: { x: 8, y: 8, z: 8 },
+    showAxes: true,
+    axesSize: 5.0,
+  },
 };
 
 // ===== CONFIGURACIÓN DE TEXTURAS =====

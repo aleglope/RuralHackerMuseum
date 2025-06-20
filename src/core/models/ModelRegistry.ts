@@ -12,6 +12,7 @@ import {
   WindowViewModelConfig,
   AnceuModelConfig,
   BenchModelConfig,
+  ManOnForestModelConfig,
   GenericModelConfig,
 } from "./types";
 
@@ -25,6 +26,7 @@ import {
   WINDOW_VIEW_CONFIG,
   ANCEU_CONFIG,
   BENCH_CONFIG,
+  MAN_ON_FOREST_CONFIG,
 } from "../config";
 
 // PEPE - Complete configuration with all animations
@@ -142,6 +144,28 @@ const GALLERY_BENCH_MODEL_CONFIG: BenchModelConfig = {
   behaviors: ["staticModel"],
 };
 
+// MAN_ON_FOREST - Configuration for FogScene con controles Leva
+const MAN_ON_FOREST_MODEL_CONFIG: ManOnForestModelConfig = {
+  type: "MAN_ON_FOREST",
+  path: MODEL_PATHS.MAIN.MAN_ON_FOREST,
+  position: MAN_ON_FOREST_CONFIG.position,
+  rotation: MAN_ON_FOREST_CONFIG.rotation,
+  scale: MAN_ON_FOREST_CONFIG.scale,
+  levaControls: {
+    position: MAN_ON_FOREST_CONFIG.levaControls.position,
+    rotation: MAN_ON_FOREST_CONFIG.levaControls.rotation,
+    scale: MAN_ON_FOREST_CONFIG.levaControls.scale,
+    showAxes: MAN_ON_FOREST_CONFIG.levaControls.showAxes,
+    axesSize: MAN_ON_FOREST_CONFIG.levaControls.axesSize,
+  },
+  materialEnhancement: {
+    envMapIntensity: MAN_ON_FOREST_CONFIG.envMapIntensity,
+  },
+  castShadow: true,
+  receiveShadow: true,
+  behaviors: ["levaControls", "materialEnhancement"],
+};
+
 const createPlantConfig = (
   plantKey: keyof typeof MODEL_PATHS.PLANTS
 ): GenericModelConfig => ({
@@ -176,6 +200,7 @@ class ModelRegistryManager {
     this.registerModel("ANCEU", ANCEU_MODEL_CONFIG);
     this.registerModel("METAL_BENCH", METAL_BENCH_MODEL_CONFIG);
     this.registerModel("GALLERY_BENCH", GALLERY_BENCH_MODEL_CONFIG);
+    this.registerModel("MAN_ON_FOREST", MAN_ON_FOREST_MODEL_CONFIG);
 
     this.registerModel("PLANT_1", createPlantConfig("PLANT_1"));
     this.registerModel("PLANT_2", createPlantConfig("PLANT_2"));

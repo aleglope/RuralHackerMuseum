@@ -116,6 +116,22 @@ export interface BenchModelConfig extends BaseModelConfig {
   behaviors: ["staticModel"];
 }
 
+// ManOnForest - Configuración para FogScene con controles Leva
+export interface ManOnForestModelConfig extends BaseModelConfig {
+  type: "MAN_ON_FOREST";
+  levaControls: {
+    position: Vector3Object;
+    rotation: Vector3Object;
+    scale: Vector3Object;
+    showAxes: boolean;
+    axesSize: number;
+  };
+  materialEnhancement: {
+    envMapIntensity: number;
+  };
+  behaviors: ["levaControls", "materialEnhancement"];
+}
+
 // Genéricos - Plants y Lamps
 export interface GenericModelConfig extends BaseModelConfig {
   type: "PLANT" | "LAMP" | "GENERIC";
@@ -129,6 +145,7 @@ export type ModelConfig =
   | WindowViewModelConfig
   | AnceuModelConfig
   | BenchModelConfig
+  | ManOnForestModelConfig
   | GenericModelConfig;
 
 // ===== PROPS PARA BaseModel3D =====

@@ -7,6 +7,7 @@ export { PepeBehaviors } from "./PepeBehaviors";
 export { WindowBehaviors } from "./WindowBehaviors";
 export { WindowViewBehaviors } from "./WindowViewBehaviors";
 export { AnceuBehaviors } from "./AnceuBehaviors";
+export { ManOnForestBehaviors } from "./ManOnForestBehaviors";
 
 // Tipos relacionados con behaviors
 export type {

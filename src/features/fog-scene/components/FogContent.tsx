@@ -8,6 +8,7 @@ import { FogParticles } from "./FogParticles";
 import { FogPlayer } from "./FogPlayer";
 import { FogGround, FogInvisibleWalls, FogLights } from "./FogEnvironment";
 import { FogTouchCameraControls } from "./FogTouchCameraControls";
+import { BaseModel3D } from "../../../core/models";
 
 interface FogContentProps {
   isPointerLockActive: boolean;
@@ -79,6 +80,10 @@ export const FogContent: React.FC<FogContentProps> = ({
       <FogLights />
       <FogGround />
       <FogInvisibleWalls />
+
+      {/* Modelo ManOnForest en el centro de la escena */}
+      <BaseModel3D modelId="MAN_ON_FOREST" />
+
       <FogParticles />
 
       {/* Capas adicionales de niebla para mayor densidad */}

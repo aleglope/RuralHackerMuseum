@@ -6,6 +6,7 @@ import {
   AdaptiveEvents,
   Preload,
 } from "@react-three/drei";
+import { Leva } from "leva";
 
 // Configuración y componentes modularizados
 import { FOG_SCENE_CONFIG, FOG_KEYBOARD_MAP } from "./config";
@@ -94,6 +95,9 @@ const FogScene: React.FC<FogSceneProps> = ({ onBack }) => {
       {sceneReady && (
         <FogTouchControls onMove={handleTouchMove} isMobile={isMobile} />
       )}
+
+      {/* Leva Controls for ManOnForest */}
+      <Leva hidden={!sceneReady} />
 
       {/* 3D Scene */}
       <KeyboardControls map={FOG_KEYBOARD_MAP}>
