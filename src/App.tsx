@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect } from "react";
 import { ImageMetadata } from "./core/types";
 import { GALLERY_IMAGES as drawingImages } from "./core/config";
 import SwipeableContainer from "./components/ui/SwipeableContainer";
@@ -8,8 +8,9 @@ import Scene from "./components/Scene";
 import UIElements from "./components/ui/UIElements";
 import Model3DViewerScene from "./features/model-viewer/Model3DViewerScene";
 import FogScene from "./features/fog-scene/FogScene";
+import { SuperRunner2D } from "./features/mini-game";
 
-type ViewState = "gallery" | "modelViewer" | "fogScene";
+type ViewState = "gallery" | "modelViewer" | "fogScene" | "miniGame";
 
 const AppContent = () => {
   const [images, setImages] = useState<ImageMetadata[]>([]);
@@ -25,11 +26,17 @@ const AppContent = () => {
 
   const handleShowModelViewer = (modelUrl: string) => {
     if (modelUrl === "FOG_SCENE") {
-      setCurrentView("fogScene");
+      // Interceptar y mostrar mini-juego antes del fog scene
+      setCurrentView("miniGame");
     } else {
       setSelectedModelUrl(modelUrl);
       setCurrentView("modelViewer");
     }
+  };
+
+  const handleMiniGameComplete = () => {
+    // Cuando se complete el mini-juego, ir al fog scene
+    setCurrentView("fogScene");
   };
 
   const handleBackToGallery = () => {
@@ -38,6 +45,15 @@ const AppContent = () => {
     setAssetsReady(false);
     setCurrentScreen("loading");
   };
+
+  if (currentView === "miniGame") {
+    return (
+      <SuperRunner2D
+        onGameComplete={handleMiniGameComplete}
+        gameDuration={60000} // 60 segundos
+      />
+    );
+  }
 
   if (currentView === "fogScene") {
     return <FogScene onBack={handleBackToGallery} />;
