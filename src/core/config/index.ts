@@ -162,12 +162,12 @@ export const BENCH_CONFIG = {
 // ManOnForest - Configuración para FogScene con posiciones optimizadas
 export const MAN_ON_FOREST_CONFIG = {
   position: { x: 9, y: 40, z: 141 }, // Posición optimizada ajustada
-  rotation: { x: -1.5, y: 0, z: -0.2 }, // Rotación optimizada
+  rotation: { x: -1.5, y: 0, z: 3.141592653589793 }, // Rotación optimizada con π en Z
   scale: { x: 8, y: 8, z: 8 }, // Escala grande para ser visible en la niebla
   envMapIntensity: 1.2,
   levaControls: {
     position: { x: 9, y: 40, z: 141 },
-    rotation: { x: -1.5, y: 0, z: -0.2 },
+    rotation: { x: -1.5, y: 0, z: 3.141592653589793 },
     scale: { x: 8, y: 8, z: 8 },
     showAxes: true,
     axesSize: 5.0,

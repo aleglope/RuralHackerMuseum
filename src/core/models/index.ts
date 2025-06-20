@@ -4,7 +4,7 @@
  */
 
 // ===== IMPORTACIONES PARA DEFAULT EXPORT =====
-import BaseModel3DComponent, { preloadModel, useModel } from "./BaseModel3D";
+import BaseModel3DComponent, { useModel } from "./BaseModel3D";
 import modelRegistryInstance, {
   validateModelRegistry,
   logModelRegistry,
@@ -12,7 +12,10 @@ import modelRegistryInstance, {
 import type { BaseModel3DProps } from "./types";
 
 // ===== COMPONENTE PRINCIPAL =====
-export { default as BaseModel3D, preloadModel, useModel } from "./BaseModel3D";
+export { default as BaseModel3D, useModel } from "./BaseModel3D";
+
+// Preloader utilities
+export { preloadModel, preloadModels } from "./utils/preloader";
 
 // ===== SISTEMA DE REGISTRO =====
 export {
@@ -80,12 +83,7 @@ export const createModel3D = (
   return BaseModel3DComponent({ modelId, ...props });
 };
 
-/**
- * Factory para precargar múltiples modelos
- */
-export const preloadModels = (modelIds: string[]) => {
-  modelIds.forEach((id) => preloadModel(id));
-};
+// Función preloadModels ahora exportada desde utils/preloader.ts
 
 /**
  * Validar todo el sistema de modelos
@@ -119,6 +117,9 @@ export const initializeModelSystem = () => {
 
   return validation;
 };
+
+// Import preloadModels for default export
+import { preloadModels } from "./utils/preloader";
 
 export default {
   BaseModel3D: BaseModel3DComponent,

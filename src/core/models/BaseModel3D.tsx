@@ -236,12 +236,7 @@ export const BaseModel3D: React.FC<BaseModel3DProps> = ({
   );
 };
 
-export const preloadModel = (modelId: string) => {
-  const config = getModelConfig(modelId);
-  if (config) {
-    useGLTF.preload(config.path);
-  }
-};
+// Función preloadModel movida a utils/preloader.ts para evitar advertencia Fast Refresh
 
 export const useModel = (modelId: string) => {
   const config = getModelConfig(modelId);
