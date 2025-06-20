@@ -236,14 +236,14 @@ const LoadingText = styled.div`
 
 // Clase Particle basada exactamente en el código HTML original
 class Particle {
-  x: number;
-  y: number;
-  radius: number;
+  x: number = 0;
+  y: number = 0;
+  radius: number = 0;
   angle: number;
-  baseSpeed: number;
-  spiralRate: number;
-  opacity: number;
-  size: number;
+  baseSpeed: number = 0;
+  spiralRate: number = 0;
+  opacity: number = 0;
+  size: number = 0;
   element: HTMLDivElement;
   trails: HTMLDivElement[];
   maxTrails: number;

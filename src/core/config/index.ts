@@ -192,48 +192,49 @@ export const GALLERY_IMAGES: ImageMetadata[] = [
   {
     url: "./Picture1.jpg",
     title: "Nocturnal Forest Mural",
-    artist: "Unknown Artist",
-    date: "Unknown",
-    link: "",
+    artist: "@stass_cam",
+    date: "2024",
+    link: "https://www.instagram.com/p/DAeRJsuO4DI/?img_index=1",
     description:
       "A detailed and atmospheric mural hung on a tree in the middle of a forest, depicting a nocturnal scene with mystical and natural elements.",
   },
   {
     url: "./picture2.jpg",
     title: "Artist with Nature Creation",
-    artist: "Unknown Artist",
-    date: "Unknown",
-    link: "",
+    artist: "@stass_cam",
+    date: "2024",
+    link: "https://www.instagram.com/p/DAeRJsuO4DI/?img_index=1",
     description:
       "A smiling artist proudly poses next to her colorful painting, which is mounted on a tree in a sunny forest environment.",
   },
   {
     url: "./picture3.jpg",
     title: "Pictorial Adventure Map",
-    artist: "Unknown Artist",
-    date: "Unknown",
-    link: "",
+    artist: "@stass_cam",
+    date: "2024",
+    link: "https://www.instagram.com/p/DAeRJsuO4DI/?img_index=1",
     description:
       "A cartographic-style painting with warm and earthy tones, displayed on a tree, that seems to narrate a journey or story through landscapes and symbols.",
   },
   {
     url: "./picture4.jpg",
     title: "Natural Tapestry",
-    artist: "Unknown Artist",
-    date: "Unknown",
+    artist: "Mery",
+    date: "2024",
     link: "https://www.instagram.com/p/DAmL2-mMgoB/?img_index=1",
     description:
       "An artist presents a large tapestry made with natural elements like branches, leaves and flowers, demonstrating a deep connection with art and nature.",
     modelViewerPath: MODEL_PATHS.MAIN.ANCEU, // ✅ Ahora usa config centralizada
   },
   {
-    url: "./LogoRHackers.svg",
-    title: "Rural Digital Education",
-    artist: "RuralHackers",
-    date: "2024",
-    link: "https://ruralhackers.org/educacion",
+    url: "./picture5.jpg",
+    title: "Mural of Village Man",
+    artist: "@sketchyshona",
+    date: "2025",
+    link: "https://www.instagram.com/p/DKVEuaatE6p/",
     description:
-      "Democratizing access to technological education in rural communities through online platforms and workshops.",
+      "A vibrant mural depicting a rural village man, showcasing the connection between traditional rural life and modern technology through artistic expression.",
+    modelViewerPath: "FOG_SCENE", // ✅ Nueva escena de niebla configurada
   },
   {
     url: "./LogoRHackers.svg",

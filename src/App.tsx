@@ -7,8 +7,9 @@ import { AnimationProvider, useAnimation } from "./contexts/AnimationContext";
 import Scene from "./components/Scene";
 import UIElements from "./components/ui/UIElements";
 import Model3DViewerScene from "./features/model-viewer/Model3DViewerScene";
+import FogScene from "./features/fog-scene/FogScene";
 
-type ViewState = "gallery" | "modelViewer";
+type ViewState = "gallery" | "modelViewer" | "fogScene";
 
 const AppContent = () => {
   const [images, setImages] = useState<ImageMetadata[]>([]);
@@ -23,8 +24,12 @@ const AppContent = () => {
   }, []);
 
   const handleShowModelViewer = (modelUrl: string) => {
-    setSelectedModelUrl(modelUrl);
-    setCurrentView("modelViewer");
+    if (modelUrl === "FOG_SCENE") {
+      setCurrentView("fogScene");
+    } else {
+      setSelectedModelUrl(modelUrl);
+      setCurrentView("modelViewer");
+    }
   };
 
   const handleBackToGallery = () => {
@@ -33,6 +38,10 @@ const AppContent = () => {
     setAssetsReady(false);
     setCurrentScreen("loading");
   };
+
+  if (currentView === "fogScene") {
+    return <FogScene onBack={handleBackToGallery} />;
+  }
 
   if (currentView === "modelViewer" && selectedModelUrl) {
     return (
