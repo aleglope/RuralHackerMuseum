@@ -35,6 +35,12 @@ const FOG_SCENE_CONFIG = {
     height: 12,
     friction: 0.9,
   },
+  boundaries: {
+    wallDistance: 490, // ✅ Límites invisibles cerca del borde de niebla (1000/2 - 10)
+    wallHeight: 25,
+    maxHeight: 18,
+    minHeight: 2,
+  },
   particles: {
     count: 8000, // ✅ 4x más partículas para mayor densidad
     area: {
@@ -224,7 +230,7 @@ function FogParticles() {
   );
 }
 
-// Componente del jugador con controles de primera persona
+// Componente del jugador con controles de primera persona y colisiones
 function Player() {
   const [, getKeys] = useKeyboardControls();
   const { camera } = useThree();
@@ -234,15 +240,12 @@ function Player() {
     const { forward, backward, left, right } = getKeys();
     const { speed, height, friction } = FOG_SCENE_CONFIG.player;
 
-    const direction = new THREE.Vector3();
     const frontVector = new THREE.Vector3(0, 0, -1).applyQuaternion(
       camera.quaternion
     );
     const sideVector = new THREE.Vector3(-1, 0, 0).applyQuaternion(
       camera.quaternion
     );
-
-    direction.subVectors(frontVector, sideVector);
 
     if (forward)
       velocity.current.add(frontVector.multiplyScalar(speed * delta));
@@ -254,9 +257,38 @@ function Player() {
     // Aplicar fricción
     velocity.current.multiplyScalar(friction);
 
-    // Mantener la cámara a una altura fija (primera persona)
-    camera.position.add(velocity.current);
-    camera.position.y = height; // Altura por encima de la niebla
+    // ✅ SISTEMA DE COLISIONES: Límites invisibles con rebote suave
+    const { wallDistance, maxHeight, minHeight } = FOG_SCENE_CONFIG.boundaries;
+    const softBoundary = wallDistance - 5; // Un poco antes de las paredes físicas para suavidad
+    const newPosition = camera.position.clone().add(velocity.current);
+
+    // Verificar límites X (Este-Oeste)
+    if (Math.abs(newPosition.x) > softBoundary) {
+      velocity.current.x *= -0.3; // Rebote suave
+      newPosition.x = Math.sign(newPosition.x) * softBoundary;
+    }
+
+    // Verificar límites Z (Norte-Sur)
+    if (Math.abs(newPosition.z) > softBoundary) {
+      velocity.current.z *= -0.3; // Rebote suave
+      newPosition.z = Math.sign(newPosition.z) * softBoundary;
+    }
+
+    // Verificar límite superior (altura máxima)
+    if (newPosition.y > maxHeight) {
+      velocity.current.y = 0;
+      newPosition.y = maxHeight;
+    }
+
+    // Verificar límite inferior (altura mínima)
+    if (newPosition.y < minHeight) {
+      velocity.current.y = 0;
+      newPosition.y = minHeight;
+    }
+
+    // Aplicar la nueva posición
+    camera.position.copy(newPosition);
+    camera.position.y = height; // Mantener altura fija por encima de la niebla
   });
 
   return null;
@@ -269,6 +301,155 @@ function Ground() {
       <planeGeometry args={[1500, 1500]} /> {/* ✅ 5x más grande que antes */}
       <meshStandardMaterial color="#ffffff" roughness={1} metalness={0} />
     </mesh>
+  );
+}
+
+// Componente de paredes invisibles para contener al jugador
+function InvisibleWalls() {
+  const { wallDistance, wallHeight } = FOG_SCENE_CONFIG.boundaries;
+  const wallThickness = 2; // Un poco más grueso para mejor detección
+
+  return (
+    <group>
+      {/* Pared Norte */}
+      <mesh position={[0, wallHeight / 2, wallDistance]} name="wall-north">
+        <boxGeometry args={[wallDistance * 2, wallHeight, wallThickness]} />
+        <meshBasicMaterial transparent opacity={0} />
+      </mesh>
+
+      {/* Pared Sur */}
+      <mesh position={[0, wallHeight / 2, -wallDistance]} name="wall-south">
+        <boxGeometry args={[wallDistance * 2, wallHeight, wallThickness]} />
+        <meshBasicMaterial transparent opacity={0} />
+      </mesh>
+
+      {/* Pared Este */}
+      <mesh position={[wallDistance, wallHeight / 2, 0]} name="wall-east">
+        <boxGeometry args={[wallThickness, wallHeight, wallDistance * 2]} />
+        <meshBasicMaterial transparent opacity={0} />
+      </mesh>
+
+      {/* Pared Oeste */}
+      <mesh position={[-wallDistance, wallHeight / 2, 0]} name="wall-west">
+        <boxGeometry args={[wallThickness, wallHeight, wallDistance * 2]} />
+        <meshBasicMaterial transparent opacity={0} />
+      </mesh>
+
+      {/* Pared superior (techo invisible) - para evitar volar muy alto */}
+      <mesh position={[0, 20, 0]} name="wall-ceiling">
+        <boxGeometry
+          args={[wallDistance * 2, wallThickness, wallDistance * 2]}
+        />
+        <meshBasicMaterial transparent opacity={0} />
+      </mesh>
+
+      {/* ✅ INDICADORES VISUALES SUTILES: Niebla más densa en los bordes EXPANDIDOS */}
+      <group>
+        {/* Niebla de borde Norte */}
+        <mesh position={[0, 5, wallDistance - 30]}>
+          <planeGeometry args={[wallDistance * 2, 20]} />
+          <meshBasicMaterial
+            transparent
+            opacity={0.08}
+            color="#87ceeb"
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+
+        {/* Niebla de borde Sur */}
+        <mesh position={[0, 5, -wallDistance + 30]} rotation={[0, Math.PI, 0]}>
+          <planeGeometry args={[wallDistance * 2, 20]} />
+          <meshBasicMaterial
+            transparent
+            opacity={0.08}
+            color="#87ceeb"
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+
+        {/* Niebla de borde Este */}
+        <mesh
+          position={[wallDistance - 30, 5, 0]}
+          rotation={[0, Math.PI / 2, 0]}
+        >
+          <planeGeometry args={[wallDistance * 2, 20]} />
+          <meshBasicMaterial
+            transparent
+            opacity={0.08}
+            color="#87ceeb"
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+
+        {/* Niebla de borde Oeste */}
+        <mesh
+          position={[-wallDistance + 30, 5, 0]}
+          rotation={[0, -Math.PI / 2, 0]}
+        >
+          <planeGeometry args={[wallDistance * 2, 20]} />
+          <meshBasicMaterial
+            transparent
+            opacity={0.08}
+            color="#87ceeb"
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+
+        {/* ✅ CAPAS ADICIONALES DE NIEBLA DENSA en perímetro */}
+        {/* Esquina NE */}
+        <mesh position={[wallDistance - 50, 3, wallDistance - 50]}>
+          <planeGeometry args={[80, 12]} />
+          <meshBasicMaterial
+            transparent
+            opacity={0.12}
+            color="#87ceeb"
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+
+        {/* Esquina NW */}
+        <mesh
+          position={[-wallDistance + 50, 3, wallDistance - 50]}
+          rotation={[0, Math.PI / 2, 0]}
+        >
+          <planeGeometry args={[80, 12]} />
+          <meshBasicMaterial
+            transparent
+            opacity={0.12}
+            color="#87ceeb"
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+
+        {/* Esquina SE */}
+        <mesh
+          position={[wallDistance - 50, 3, -wallDistance + 50]}
+          rotation={[0, -Math.PI / 2, 0]}
+        >
+          <planeGeometry args={[80, 12]} />
+          <meshBasicMaterial
+            transparent
+            opacity={0.12}
+            color="#87ceeb"
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+
+        {/* Esquina SW */}
+        <mesh
+          position={[-wallDistance + 50, 3, -wallDistance + 50]}
+          rotation={[0, Math.PI, 0]}
+        >
+          <planeGeometry args={[80, 12]} />
+          <meshBasicMaterial
+            transparent
+            opacity={0.12}
+            color="#87ceeb"
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      </group>
+    </group>
   );
 }
 
@@ -337,6 +518,7 @@ function FogSceneContent() {
       <Player />
       <Environment />
       <Ground />
+      <InvisibleWalls />
       <FogParticles />
       {/* ✅ CAPAS ADICIONALES DE NIEBLA para mayor densidad */}
       <group position={[250, 0, 250]}>
