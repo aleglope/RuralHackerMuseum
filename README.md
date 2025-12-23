@@ -456,10 +456,7 @@ MIT License - ver [LICENSE.md](LICENSE.md) para detalles.
 
 ## 🌐 Enlaces
 
-- **Website**: [RuralHackers.org](https://ruralhackers.org)
-- **Sostenibilidad**: [ruralhackers.org/sostenibilidad](https://ruralhackers.org/sostenibilidad)
-- **Emprendimiento**: [ruralhackers.org/emprendimiento](https://ruralhackers.org/emprendimiento)
-- **Colaboración**: [ruralhackers.org/colaboracion](https://ruralhackers.org/colaboracion)
+- **Website**: [RuralHackers.com](https://ruralhackers.com)
 
 ---
 
