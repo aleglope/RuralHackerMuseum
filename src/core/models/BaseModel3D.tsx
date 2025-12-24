@@ -5,7 +5,6 @@
 
 import React, { useEffect, useRef } from "react";
 import { useGLTF, useAnimations } from "@react-three/drei";
-import { GroupProps, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
 // Behaviors
@@ -18,206 +17,215 @@ import ManOnForestBehaviors from "./behaviors/ManOnForestBehaviors";
 // Utils and types
 import { getModelPosition, getModelRotation, getModelScale } from "./utils";
 import { getModelConfig } from "./ModelRegistry";
-import { BaseModel3DProps } from "./types";
+import {
+  AnceuModelConfig,
+  BaseModel3DProps,
+  BenchModelConfig,
+  ManOnForestModelConfig,
+  ModelConfig,
+  PepeModelConfig,
+  WindowModelConfig,
+  WindowViewModelConfig,
+} from "./types";
 
-export const BaseModel3D: React.FC<BaseModel3DProps> = ({
-  modelId,
-  config: propConfig,
+type GLTFResult = {
+  scene: THREE.Group;
+  animations: THREE.AnimationClip[];
+  nodes?: Record<string, { geometry?: THREE.BufferGeometry }>;
+  materials?: Record<string, THREE.Material>;
+};
+
+type ActionsMap = Record<string, THREE.AnimationAction | null>;
+
+const PepeModel: React.FC<{
+  config: PepeModelConfig;
+  gltf: GLTFResult;
+  actions: ActionsMap;
+} & Omit<BaseModel3DProps, "config">> = ({ config, gltf, actions, ...groupProps }) => {
+  const groupRef = useRef<THREE.Group>(null);
+  PepeBehaviors.usePepeBehavior(config, gltf, actions, groupRef);
+  return (
+    <group ref={groupRef} {...groupProps} dispose={null}>
+      <primitive object={gltf.scene} />
+    </group>
+  );
+};
+
+const WindowModel: React.FC<{
+  config: WindowModelConfig;
+  gltf: GLTFResult;
+  overridePosition?: BaseModel3DProps["overridePosition"];
+  overrideRotation?: BaseModel3DProps["overrideRotation"];
+  overrideScale?: BaseModel3DProps["overrideScale"];
+} & Omit<BaseModel3DProps, "config">> = ({
+  config,
+  gltf,
   overridePosition,
   overrideRotation,
   overrideScale,
   ...groupProps
 }) => {
   const groupRef = useRef<THREE.Group>(null);
+  const windowBehaviors = WindowBehaviors.useWindowBehavior(config, gltf);
+  return (
+    <group
+      ref={groupRef}
+      {...groupProps}
+      position={overridePosition || getModelPosition(config)}
+      rotation={overrideRotation || getModelRotation(config)}
+      scale={overrideScale || getModelScale(config)}
+      dispose={null}
+    >
+      <primitive object={windowBehaviors.modifiedScene} />
+    </group>
+  );
+};
 
-  // Get configuration
-  const config = propConfig || getModelConfig(modelId);
+const WindowViewModel: React.FC<{
+  config: WindowViewModelConfig;
+  gltf: GLTFResult;
+} & Omit<BaseModel3DProps, "config">> = ({ config, gltf, ...groupProps }) => {
+  const groupRef = useRef<THREE.Group>(null);
+  const windowViewBehaviors = WindowViewBehaviors.useWindowViewBehavior(
+    config,
+    gltf,
+    groupRef
+  );
+  return (
+    <group
+      ref={groupRef}
+      {...groupProps}
+      position={[
+        windowViewBehaviors.position.x,
+        windowViewBehaviors.position.y,
+        windowViewBehaviors.position.z,
+      ]}
+      rotation={[
+        windowViewBehaviors.rotation.x,
+        windowViewBehaviors.rotation.y,
+        windowViewBehaviors.rotation.z,
+      ]}
+      scale={[
+        windowViewBehaviors.scale.x,
+        windowViewBehaviors.scale.y,
+        windowViewBehaviors.scale.z,
+      ]}
+      dispose={null}
+    >
+      <primitive object={windowViewBehaviors.modifiedScene} />
+      {windowViewBehaviors.showAxes && (
+        <axesHelper args={[windowViewBehaviors.axesSize]} />
+      )}
+    </group>
+  );
+};
 
-  if (!config) {
-    console.warn(`Model configuration not found for: ${modelId}`);
-    return null;
-  }
+const AnceuModel: React.FC<{
+  config: AnceuModelConfig;
+  gltf: GLTFResult;
+} & Omit<BaseModel3DProps, "config">> = ({ config, gltf, ...groupProps }) => {
+  const groupRef = useRef<THREE.Group>(null);
+  const anceuBehaviors = AnceuBehaviors.useAnceuBehavior(config, gltf, groupRef);
+  return (
+    <group ref={groupRef} {...groupProps} dispose={null}>
+      <primitive object={anceuBehaviors.transformedScene} />
+    </group>
+  );
+};
 
-  const gltf = useGLTF(config.path);
-  const { actions } = useAnimations(gltf.animations, gltf.scene);
-  const { camera } = useThree();
+const ManOnForestModel: React.FC<{
+  config: ManOnForestModelConfig;
+  gltf: GLTFResult;
+} & Omit<BaseModel3DProps, "config">> = ({ config, gltf, ...groupProps }) => {
+  const groupRef = useRef<THREE.Group>(null);
+  const manOnForestBehaviors = ManOnForestBehaviors.useManOnForestBehavior(
+    config,
+    gltf,
+    groupRef
+  );
+  return (
+    <group
+      ref={groupRef}
+      {...groupProps}
+      position={[
+        manOnForestBehaviors.position.x,
+        manOnForestBehaviors.position.y,
+        manOnForestBehaviors.position.z,
+      ]}
+      rotation={[
+        manOnForestBehaviors.rotation.x,
+        manOnForestBehaviors.rotation.y,
+        manOnForestBehaviors.rotation.z,
+      ]}
+      scale={[
+        manOnForestBehaviors.scale.x,
+        manOnForestBehaviors.scale.y,
+        manOnForestBehaviors.scale.z,
+      ]}
+      dispose={null}
+    >
+      <primitive object={manOnForestBehaviors.modifiedScene} />
+      {manOnForestBehaviors.showAxes && (
+        <axesHelper args={[manOnForestBehaviors.axesSize]} />
+      )}
+    </group>
+  );
+};
 
-  // Type-specific behaviors
-  const pepeBehaviors =
-    config.type === "PEPE"
-      ? PepeBehaviors.usePepeBehavior(config, gltf, actions, groupRef)
-      : null;
+const BenchModel: React.FC<{
+  config: BenchModelConfig;
+  gltf: GLTFResult;
+  overridePosition?: BaseModel3DProps["overridePosition"];
+  overrideRotation?: BaseModel3DProps["overrideRotation"];
+  overrideScale?: BaseModel3DProps["overrideScale"];
+} & Omit<BaseModel3DProps, "config">> = ({
+  config,
+  gltf,
+  overridePosition,
+  overrideRotation,
+  overrideScale,
+  ...groupProps
+}) => {
+  const groupRef = useRef<THREE.Group>(null);
+  const { nodes, materials } = gltf;
 
-  const windowBehaviors =
-    config.type === "WINDOW"
-      ? WindowBehaviors.useWindowBehavior(config, gltf)
-      : null;
+  const { position: groupPosition, rotation: groupRotation, ...restGroupProps } =
+    groupProps;
 
-  const windowViewBehaviors =
-    config.type === "WINDOW_VIEW"
-      ? WindowViewBehaviors.useWindowViewBehavior(config, gltf, groupRef)
-      : null;
+  const geometry = nodes?.[config.geometry.nodeKey]?.geometry;
+  const material = materials?.[config.geometry.materialKey];
 
-  const anceuBehaviors =
-    config.type === "ANCEU"
-      ? AnceuBehaviors.useAnceuBehavior(config, gltf, groupRef)
-      : null;
+  if (!geometry || !material) return null;
 
-  const manOnForestBehaviors =
-    config.type === "MAN_ON_FOREST"
-      ? ManOnForestBehaviors.useManOnForestBehavior(config, gltf, groupRef)
-      : null;
+  return (
+    <group
+      ref={groupRef}
+      {...restGroupProps}
+      position={overridePosition || groupPosition}
+      rotation={overrideRotation || groupRotation}
+      scale={overrideScale || getModelScale(config)}
+      dispose={null}
+    >
+      <mesh castShadow receiveShadow geometry={geometry} material={material} />
+    </group>
+  );
+};
 
-  useEffect(() => {
-    if (!gltf?.scene) return;
-
-    gltf.scene.traverse((child: any) => {
-      if (child instanceof THREE.Mesh) {
-        child.castShadow = config.castShadow ?? true;
-        child.receiveShadow = config.receiveShadow ?? true;
-      }
-    });
-  }, [gltf.scene, config]);
-
-  // PEPE - Direct rendering, transforms applied by behavior to groupRef
-  if (config.type === "PEPE" && pepeBehaviors) {
-    return (
-      <group ref={groupRef} {...groupProps} dispose={null}>
-        <primitive object={gltf.scene} />
-      </group>
-    );
-  }
-
-  // WINDOW - Rendering with modified materials
-  if (config.type === "WINDOW" && windowBehaviors) {
-    return (
-      <group
-        ref={groupRef}
-        {...groupProps}
-        position={overridePosition || getModelPosition(config)}
-        rotation={overrideRotation || getModelRotation(config)}
-        scale={overrideScale || getModelScale(config)}
-        dispose={null}
-      >
-        <primitive object={windowBehaviors.modifiedScene} />
-      </group>
-    );
-  }
-
-  // WINDOW_VIEW - Rendering with Leva controls
-  if (config.type === "WINDOW_VIEW" && windowViewBehaviors) {
-    return (
-      <group
-        ref={groupRef}
-        {...groupProps}
-        position={[
-          windowViewBehaviors.position.x,
-          windowViewBehaviors.position.y,
-          windowViewBehaviors.position.z,
-        ]}
-        rotation={[
-          windowViewBehaviors.rotation.x,
-          windowViewBehaviors.rotation.y,
-          windowViewBehaviors.rotation.z,
-        ]}
-        scale={[
-          windowViewBehaviors.scale.x,
-          windowViewBehaviors.scale.y,
-          windowViewBehaviors.scale.z,
-        ]}
-        dispose={null}
-      >
-        <primitive object={windowViewBehaviors.modifiedScene} />
-        {windowViewBehaviors.showAxes && (
-          <axesHelper args={[windowViewBehaviors.axesSize]} />
-        )}
-      </group>
-    );
-  }
-
-  // ANCEU - Rendering with complex transformations applied
-  if (config.type === "ANCEU" && anceuBehaviors) {
-    return (
-      <group ref={groupRef} {...groupProps} dispose={null}>
-        <primitive object={anceuBehaviors.transformedScene} />
-      </group>
-    );
-  }
-
-  // MAN_ON_FOREST - Rendering with Leva controls
-  if (config.type === "MAN_ON_FOREST" && manOnForestBehaviors) {
-    return (
-      <group
-        ref={groupRef}
-        {...groupProps}
-        position={[
-          manOnForestBehaviors.position.x,
-          manOnForestBehaviors.position.y,
-          manOnForestBehaviors.position.z,
-        ]}
-        rotation={[
-          manOnForestBehaviors.rotation.x,
-          manOnForestBehaviors.rotation.y,
-          manOnForestBehaviors.rotation.z,
-        ]}
-        scale={[
-          manOnForestBehaviors.scale.x,
-          manOnForestBehaviors.scale.y,
-          manOnForestBehaviors.scale.z,
-        ]}
-        dispose={null}
-      >
-        <primitive object={manOnForestBehaviors.modifiedScene} />
-        {manOnForestBehaviors.showAxes && (
-          <axesHelper args={[manOnForestBehaviors.axesSize]} />
-        )}
-      </group>
-    );
-  }
-
-  // BENCH - Specific rendering with preserved geometry
-  if (config.type === "BENCH") {
-    const { nodes, materials } = gltf as any;
-
-    const {
-      position: groupPosition,
-      rotation: groupRotation,
-      ...restGroupProps
-    } = groupProps;
-
-    if (!nodes || !materials) {
-      console.warn(`❌ BENCH ${modelId}: Missing nodes or materials`);
-      return null;
-    }
-
-    const geometry = nodes[config.geometry.nodeKey]?.geometry;
-    const material = materials[config.geometry.materialKey];
-
-    if (!geometry || !material) {
-      console.warn(`❌ BENCH ${modelId}: Missing geometry/material`);
-      return null;
-    }
-
-    return (
-      <group
-        ref={groupRef}
-        {...restGroupProps}
-        position={overridePosition || groupPosition}
-        rotation={overrideRotation || groupRotation}
-        scale={overrideScale || getModelScale(config)}
-        dispose={null}
-      >
-        <mesh
-          castShadow
-          receiveShadow
-          geometry={geometry}
-          material={material}
-        />
-      </group>
-    );
-  }
-
-  // GENERIC - Simple rendering
+const GenericModel: React.FC<{
+  config: ModelConfig;
+  gltf: GLTFResult;
+  overridePosition?: BaseModel3DProps["overridePosition"];
+  overrideRotation?: BaseModel3DProps["overrideRotation"];
+  overrideScale?: BaseModel3DProps["overrideScale"];
+} & Omit<BaseModel3DProps, "config">> = ({
+  config,
+  gltf,
+  overridePosition,
+  overrideRotation,
+  overrideScale,
+  ...groupProps
+}) => {
+  const groupRef = useRef<THREE.Group>(null);
   return (
     <group
       ref={groupRef}
@@ -236,17 +244,129 @@ export const BaseModel3D: React.FC<BaseModel3DProps> = ({
   );
 };
 
-// Función preloadModel movida a utils/preloader.ts para evitar advertencia Fast Refresh
+export const BaseModel3D: React.FC<BaseModel3DProps> = ({
+  modelId,
+  config: propConfig,
+  overridePosition,
+  overrideRotation,
+  overrideScale,
+  ...groupProps
+}) => {
+  const config = propConfig || getModelConfig(modelId);
+  const modelPath = config?.path ?? "/models/pepe.glb";
+  const gltf = useGLTF(modelPath) as unknown as GLTFResult;
+  const { actions } = useAnimations(gltf.animations, gltf.scene);
+  const actionsMap = (actions ?? {}) as unknown as ActionsMap;
 
-export const useModel = (modelId: string) => {
-  const config = getModelConfig(modelId);
-  const gltf = config ? useGLTF(config.path) : null;
+  useEffect(() => {
+    if (!config || !gltf?.scene) return;
+    gltf.scene.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        mesh.castShadow = config.castShadow ?? true;
+        mesh.receiveShadow = config.receiveShadow ?? true;
+      }
+    });
+  }, [config, gltf]);
 
-  return {
-    config,
-    gltf,
-    isLoaded: !!gltf,
-  };
+  if (!config) return null;
+
+  if (config.type === "PEPE") {
+    return (
+      <PepeModel
+        config={config}
+        gltf={gltf}
+        actions={actionsMap}
+        modelId={modelId}
+        overridePosition={overridePosition}
+        overrideRotation={overrideRotation}
+        overrideScale={overrideScale}
+        {...groupProps}
+      />
+    );
+  }
+
+  if (config.type === "WINDOW") {
+    return (
+      <WindowModel
+        config={config}
+        gltf={gltf}
+        modelId={modelId}
+        overridePosition={overridePosition}
+        overrideRotation={overrideRotation}
+        overrideScale={overrideScale}
+        {...groupProps}
+      />
+    );
+  }
+
+  if (config.type === "WINDOW_VIEW") {
+    return (
+      <WindowViewModel
+        config={config}
+        gltf={gltf}
+        modelId={modelId}
+        overridePosition={overridePosition}
+        overrideRotation={overrideRotation}
+        overrideScale={overrideScale}
+        {...groupProps}
+      />
+    );
+  }
+
+  if (config.type === "ANCEU") {
+    return (
+      <AnceuModel
+        config={config}
+        gltf={gltf}
+        modelId={modelId}
+        overridePosition={overridePosition}
+        overrideRotation={overrideRotation}
+        overrideScale={overrideScale}
+        {...groupProps}
+      />
+    );
+  }
+
+  if (config.type === "MAN_ON_FOREST") {
+    return (
+      <ManOnForestModel
+        config={config}
+        gltf={gltf}
+        modelId={modelId}
+        overridePosition={overridePosition}
+        overrideRotation={overrideRotation}
+        overrideScale={overrideScale}
+        {...groupProps}
+      />
+    );
+  }
+
+  if (config.type === "BENCH") {
+    return (
+      <BenchModel
+        config={config}
+        gltf={gltf}
+        modelId={modelId}
+        overridePosition={overridePosition}
+        overrideRotation={overrideRotation}
+        overrideScale={overrideScale}
+        {...groupProps}
+      />
+    );
+  }
+
+  return (
+    <GenericModel
+      config={config}
+      gltf={gltf}
+      modelId={modelId}
+      overridePosition={overridePosition}
+      overrideRotation={overrideRotation}
+      overrideScale={overrideScale}
+      {...groupProps}
+    />
+  );
 };
 
 export default BaseModel3D;

@@ -55,13 +55,14 @@ export const ViewerControls: React.FC<ViewerControlsProps> = ({ onMove }) => {
       onMove(direction, false);
     };
 
-    // Add non-passive event listeners for each button
-    Object.entries(buttonRefs.current).forEach(([direction, element]) => {
+    const buttonElements = { ...buttonRefs.current };
+    const cleanups: Array<() => void> = [];
+
+    Object.entries(buttonElements).forEach(([direction, element]) => {
       if (element) {
         const touchStartHandler = handleTouchStart(direction);
         const touchEndHandler = handleTouchEnd(direction);
 
-        // Add non-passive event listeners
         element.addEventListener("touchstart", touchStartHandler, {
           passive: false,
         });
@@ -72,40 +73,36 @@ export const ViewerControls: React.FC<ViewerControlsProps> = ({ onMove }) => {
           passive: false,
         });
 
-        // Also add mouse events for compatibility
-        element.addEventListener("mousedown", (e) => {
+        const mouseDownHandler = (e: MouseEvent) => {
           e.preventDefault();
           onMove(direction, true);
-        });
-        element.addEventListener("mouseup", (e) => {
+        };
+        const mouseUpHandler = (e: MouseEvent) => {
           e.preventDefault();
           onMove(direction, false);
-        });
-        element.addEventListener("mouseleave", (e) => {
+        };
+        const mouseLeaveHandler = (e: MouseEvent) => {
           e.preventDefault();
           onMove(direction, false);
-        });
+        };
 
-        // Store handlers for cleanup
-        (element as any)._touchStartHandler = touchStartHandler;
-        (element as any)._touchEndHandler = touchEndHandler;
+        element.addEventListener("mousedown", mouseDownHandler);
+        element.addEventListener("mouseup", mouseUpHandler);
+        element.addEventListener("mouseleave", mouseLeaveHandler);
+
+        cleanups.push(() => {
+          element.removeEventListener("touchstart", touchStartHandler);
+          element.removeEventListener("touchend", touchEndHandler);
+          element.removeEventListener("touchcancel", touchEndHandler);
+          element.removeEventListener("mousedown", mouseDownHandler);
+          element.removeEventListener("mouseup", mouseUpHandler);
+          element.removeEventListener("mouseleave", mouseLeaveHandler);
+        });
       }
     });
 
-    // Cleanup function
     return () => {
-      Object.values(buttonRefs.current).forEach((element) => {
-        if (element) {
-          const touchStartHandler = (element as any)._touchStartHandler;
-          const touchEndHandler = (element as any)._touchEndHandler;
-
-          if (touchStartHandler && touchEndHandler) {
-            element.removeEventListener("touchstart", touchStartHandler);
-            element.removeEventListener("touchend", touchEndHandler);
-            element.removeEventListener("touchcancel", touchEndHandler);
-          }
-        }
-      });
+      cleanups.forEach((cleanup) => cleanup());
     };
   }, [isMobile, onMove]);
 

@@ -10,8 +10,6 @@ import {
   PepeConfig,
   WindowConfig,
   AnceuConfig,
-  Vector3Object,
-  LightConfig,
 } from "../types";
 
 // ===== PATHS DE MODELOS 3D =====

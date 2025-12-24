@@ -88,7 +88,7 @@ export const Ceiling = ({ ceilingSize }: { ceilingSize: number }) => {
 };
 
 // Gallery walls component
-export const GalleryWalls = ({ floorY }: { floorY: number }) => {
+export const GalleryWalls = () => {
   const { base, albedo, normal, roughness, metallic, ao, height } =
     TEXTURE_PATHS.ROCK_WALL;
 
@@ -103,11 +103,8 @@ export const GalleryWalls = ({ floorY }: { floorY: number }) => {
     ]);
 
   // Window configuration
-  const windowX = -9.8;
   const windowY = -0.3;
   const windowZ = -8.5;
-  const windowScale = 0.9;
-  const windowRotationY = Math.PI / 2;
   const windowWidth = 2.5;
   const windowHeight = 2.0;
 
@@ -144,24 +141,16 @@ export const GalleryWalls = ({ floorY }: { floorY: number }) => {
   );
 
   const wallHeight = 10;
-  const wallLength = 20;
   const wallCenterY = 2.5;
-  const wallZ = 0;
-  const wallBottom = wallCenterY - wallHeight / 2;
   const wallTop = wallCenterY + wallHeight / 2;
 
   const windowCenterZ = windowZ;
-  const windowBottom = windowY;
   const windowTop = windowY + windowHeight;
-  const windowLeft = windowCenterZ - windowWidth / 2;
   const windowRight = windowCenterZ + windowWidth / 2;
 
-  const wallStartZ = -10;
   const wallEndZ = 10;
 
-  const leftSectionLength = Math.max(0, windowLeft - wallStartZ);
   const rightSectionLength = Math.max(0, wallEndZ - windowRight);
-  const bottomSectionHeight = Math.max(0, windowBottom - wallBottom);
   const topSectionHeight = Math.max(0, wallTop - windowTop);
 
   const upperSectionMaterial = React.useMemo(() => {
@@ -722,17 +711,17 @@ export const PlayerControllerWithTouch = ({
   floorY,
   freeCameraMode = false,
   cameraSpeed = 5,
-  sceneReady,
   onTouchControlsRef,
 }: {
   floorY: number;
   freeCameraMode?: boolean;
   cameraSpeed?: number;
-  sceneReady: boolean;
-  onTouchControlsRef?: (ref: any) => void;
+  onTouchControlsRef?: (
+    ref: (direction: string, active: boolean) => void
+  ) => void;
 }) => {
   const { camera, gl } = useThree();
-  const controlsRef = React.useRef<any>();
+  const controlsRef = React.useRef<unknown>(null);
   const playerVelocity = React.useRef(new THREE.Vector3());
   const keys = usePlayerControls();
   const isMobile = useIsMobile();
@@ -786,14 +775,15 @@ export const PlayerControllerWithTouch = ({
   }, [camera, floorY]);
 
   useFrame((state, delta) => {
+    const controls = controlsRef.current as { isLocked?: boolean } | null;
     // For mobile, don't use PointerLockControls
-    if (isMobile || !controlsRef.current) {
+    if (isMobile || !controls) {
       // Allow movement without lock on mobile
       if (!isMobile) {
         playerVelocity.current.set(0, 0, 0);
         return;
       }
-    } else if (!isMobile && !controlsRef.current.isLocked) {
+    } else if (!isMobile && !controls.isLocked) {
       // On PC, only allow movement if locked
       playerVelocity.current.set(0, 0, 0);
       return;

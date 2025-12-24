@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Environment } from "@react-three/drei";
 
 interface SafeEnvironmentProps {
-  preset?: string;
+  preset?: React.ComponentProps<typeof Environment>["preset"];
   fallback?: "studio" | "basic" | "none";
   backgroundColor?: string;
 }
@@ -19,7 +19,7 @@ const SafeEnvironment: React.FC<SafeEnvironmentProps> = ({
   backgroundColor = "#1a1a1a",
 }) => {
   const [hasError, setHasError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  void backgroundColor;
 
   // Manejar errores de carga del Environment
   const handleError = React.useCallback(() => {
@@ -27,13 +27,7 @@ const SafeEnvironment: React.FC<SafeEnvironmentProps> = ({
       `Failed to load Environment preset: ${preset}. Using fallback.`
     );
     setHasError(true);
-    setIsLoading(false);
   }, [preset]);
-
-  // Manejar carga exitosa
-  const handleLoad = React.useCallback(() => {
-    setIsLoading(false);
-  }, []);
 
   // Si hay error, usar fallback básico
   if (hasError) {
@@ -75,7 +69,7 @@ const SafeEnvironment: React.FC<SafeEnvironmentProps> = ({
   return (
     <React.Suspense fallback={<ambientLight intensity={0.5} color="#ffffff" />}>
       <ErrorBoundary onError={handleError}>
-        <Environment preset={preset as any} />
+        <Environment preset={preset} />
       </ErrorBoundary>
     </React.Suspense>
   );

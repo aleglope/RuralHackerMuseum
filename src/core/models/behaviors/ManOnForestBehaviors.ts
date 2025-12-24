@@ -11,7 +11,7 @@ import { ManOnForestModelConfig } from "../types";
 export const ManOnForestBehaviors = {
   useManOnForestBehavior: (
     config: ManOnForestModelConfig,
-    gltf: any,
+    gltf: { scene?: THREE.Group } | null,
     groupRef: React.RefObject<THREE.Group>
   ) => {
     const modelCenterRef = useRef<THREE.Vector3>(new THREE.Vector3());

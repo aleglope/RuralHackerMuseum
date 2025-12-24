@@ -2,7 +2,6 @@ import React, { Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
 import { AdaptiveDpr, AdaptiveEvents, Preload } from "@react-three/drei";
 import SafeEnvironment from "./ui/SafeEnvironment";
-import { Perf } from "r3f-perf";
 import Museum from "./Museum";
 import { ImageMetadata } from "../core/types";
 import { useAnimation } from "../contexts/AnimationContext";

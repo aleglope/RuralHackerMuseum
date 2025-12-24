@@ -78,7 +78,9 @@ export const scaleToArray = (
 /**
  * Helper para escalar modelos que tienen configuraciones complejas
  */
-export const getModelScale = (config: any): [number, number, number] => {
+export const getModelScale = (
+  config: { scale?: Vector3Like } | null | undefined
+): [number, number, number] => {
   if (!config?.scale) {
     return [1, 1, 1];
   }
@@ -89,7 +91,9 @@ export const getModelScale = (config: any): [number, number, number] => {
 /**
  * Helper para posición de modelos
  */
-export const getModelPosition = (config: any): [number, number, number] => {
+export const getModelPosition = (
+  config: { position?: Vector3Like } | null | undefined
+): [number, number, number] => {
   if (!config?.position) {
     return [0, 0, 0];
   }
@@ -100,7 +104,9 @@ export const getModelPosition = (config: any): [number, number, number] => {
 /**
  * Helper para rotación de modelos
  */
-export const getModelRotation = (config: any): [number, number, number] => {
+export const getModelRotation = (
+  config: { rotation?: Vector3Like } | null | undefined
+): [number, number, number] => {
   if (!config?.rotation) {
     return [0, 0, 0];
   }
@@ -113,7 +119,7 @@ export const getModelRotation = (config: any): [number, number, number] => {
 /**
  * Validates if a value is a valid Vector3
  */
-export const isValidVector3 = (value: any): boolean => {
+export const isValidVector3 = (value: unknown): boolean => {
   if (typeof value === "number") return true;
   if (Array.isArray(value) && value.length === 3) return true;
   if (

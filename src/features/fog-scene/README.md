@@ -69,6 +69,7 @@ src/features/fog-scene/
 - Composición de todos los elementos
 - Gestión de múltiples capas de partículas
 - Detección móvil automática y controles adaptativos
+- **Integración de modelos 3D**: BaseModel3D con "MAN_ON_FOREST"
 
 #### **FogTouchControls.tsx** (Nuevo)
 
@@ -92,6 +93,17 @@ src/features/fog-scene/
 - **Distribución**: 5 capas de 8,000 cada una
 - **Área**: 1000x1000 unidades WorldSpace
 - **Optimización**: Frame skipping (actualización cada 2 frames)
+
+### **Modelos 3D Integrados**
+
+- **ManOnForest**: Modelo con posición optimizada y controles Leva
+  - **Posición fija**: `{ x: 9, y: 40, z: 141 }` - Optimizada para mejor visibilidad
+  - **Rotación fija**: `{ x: -1.5, y: 0, z: π }` - Orientación mejorada con giro 180°
+  - **Controles**: Panel Leva "ManOnForest (FogScene)" para ajustes adicionales
+  - **Escala**: 8x para visibilidad en niebla (ajustable 0.1-20x)
+  - **Materiales**: Enhancement automático con envMapIntensity
+  - **Behavior**: ManOnForestBehaviors con Leva + material optimization
+  - **Axes Helper**: Opcional y configurable para referencia espacial
 
 ### **Controles y Navegación**
 

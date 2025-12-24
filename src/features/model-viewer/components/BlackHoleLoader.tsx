@@ -1,8 +1,22 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import styled, { keyframes } from "styled-components";
+import * as THREE from "three";
+import { BLACKHOLE_CONFIG } from "../../../core/config";
 
 interface BlackHoleLoaderProps {
   progress: number;
+  assetsReady?: boolean;
+  meta?: {
+    loaded: number;
+    total: number;
+    item: string;
+  };
   onComplete?: () => void;
 }
 
@@ -234,266 +248,584 @@ const LoadingText = styled.div`
   }
 `;
 
-// Clase Particle basada exactamente en el código HTML original
-class Particle {
-  x: number = 0;
-  y: number = 0;
-  radius: number = 0;
-  angle: number;
-  baseSpeed: number = 0;
-  spiralRate: number = 0;
-  opacity: number = 0;
-  size: number = 0;
-  element: HTMLDivElement;
-  trails: HTMLDivElement[];
-  maxTrails: number;
-  containerSize: number;
+const ParticlesCanvas = styled.canvas`
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 45;
+`;
 
-  constructor(container: HTMLDivElement, containerSize: number = 600) {
-    this.containerSize = containerSize;
-    this.trails = [];
-    this.maxTrails = 15;
-    this.element = document.createElement("div");
-    this.element.style.position = "absolute";
-    this.element.style.borderRadius = "50%";
-    this.element.style.pointerEvents = "none";
-    this.element.style.zIndex = "50";
-    container.appendChild(this.element);
+const LoadingMeta = styled.div`
+  position: absolute;
+  bottom: 35px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  letter-spacing: 1px;
+  max-width: 90%;
+  text-align: center;
+  z-index: 220;
+  user-select: none;
+`;
 
-    this.reset();
-    this.angle = Math.random() * Math.PI * 2;
-  }
+const ErrorText = styled.div`
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(231, 76, 60, 0.95);
+  font-size: 12px;
+  max-width: 90%;
+  text-align: center;
+  z-index: 230;
+  user-select: none;
+`;
 
-  reset() {
-    // Posición inicial exactamente como el original - desde los 4 bordes
-    const edge = Math.floor(Math.random() * 4);
+const FpsText = styled.div`
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  letter-spacing: 1px;
+  z-index: 240;
+  user-select: none;
+`;
 
-    switch (edge) {
-      case 0: // Arriba
-        this.x = Math.random() * this.containerSize;
-        this.y = 0;
-        break;
-      case 1: // Derecha
-        this.x = this.containerSize;
-        this.y = Math.random() * this.containerSize;
-        break;
-      case 2: // Abajo
-        this.x = Math.random() * this.containerSize;
-        this.y = this.containerSize;
-        break;
-      case 3: // Izquierda
-        this.x = 0;
-        this.y = Math.random() * this.containerSize;
-        break;
-    }
+type WorkerFrameMessage = {
+  type: "frame";
+  frame: ArrayBuffer;
+  width: number;
+  height: number;
+};
 
-    this.radius = Math.sqrt(
-      Math.pow(this.x - this.containerSize / 2, 2) +
-        Math.pow(this.y - this.containerSize / 2, 2)
-    );
-
-    // Velocidades MÁS RÁPIDAS como el original HTML
-    this.baseSpeed = 0.05 + Math.random() * 0.08; // Mucho más rápido
-    this.spiralRate = 0.96 + Math.random() * 0.02; // Espiral más agresiva
-    this.opacity = 1;
-    this.size = 5 + Math.random() * 3; // Tamaño base como el original
-  }
-
-  createTrail() {
-    const trail = document.createElement("div");
-    trail.style.position = "absolute";
-    trail.style.width = "3px";
-    trail.style.height = "3px";
-    trail.style.borderRadius = "50%";
-    trail.style.background = "rgba(148, 0, 211, 0.8)";
-    trail.style.pointerEvents = "none";
-    trail.style.left = this.element.style.left;
-    trail.style.top = this.element.style.top;
-    trail.style.opacity = String(this.opacity * 0.5);
-    trail.style.zIndex = "40";
-
-    this.element.parentElement?.appendChild(trail);
-    this.trails.push(trail);
-
-    if (this.trails.length > this.maxTrails) {
-      const oldTrail = this.trails.shift();
-      oldTrail?.remove();
-    }
-
-    // Fade out trails
-    this.trails.forEach((trail, index) => {
-      trail.style.opacity = String(
-        (index / this.trails.length) * this.opacity * 0.3
-      );
-    });
-  }
-
-  update(speedMultiplier: number) {
-    // Calcular velocidad basada en la distancia al centro - exacto del original
-    const centerX = this.containerSize / 2;
-    const centerY = this.containerSize / 2;
-    const distanceToCenter = Math.sqrt(
-      Math.pow(this.x - centerX, 2) + Math.pow(this.y - centerY, 2)
-    );
-
-    const speed =
-      this.baseSpeed *
-      speedMultiplier *
-      (1 + (centerX - distanceToCenter) / 100);
-
-    // Movimiento en espiral - exacto del original
-    this.angle += speed;
-    this.radius *= this.spiralRate;
-
-    // Convertir coordenadas polares a cartesianas
-    this.x = centerX + this.radius * Math.cos(this.angle);
-    this.y = centerY + this.radius * Math.sin(this.angle);
-
-    // Actualizar opacidad basada en la distancia
-    this.opacity = Math.min(1, distanceToCenter / 200);
-
-    // Crear estela cada pocos frames - exacto del original
-    if (Math.random() > 0.7) {
-      this.createTrail();
-    }
-
-    // Si la partícula está muy cerca del centro, resetear
-    if (this.radius < 60) {
-      // Ajustado para el nuevo Event Horizon más grande
-      this.reset();
-      // Limpiar trails
-      this.trails.forEach((trail) => trail.remove());
-      this.trails = [];
-    }
-
-    this.render(speedMultiplier);
-  }
-
-  render(speedMultiplier: number) {
-    this.element.style.left = this.x + "px";
-    this.element.style.top = this.y + "px";
-    this.element.style.opacity = String(this.opacity);
-    this.element.style.width = this.size + "px";
-    this.element.style.height = this.size + "px";
-
-    // Color basado en la velocidad - MUCHO MÁS BRILLANTE
-    const hue = 270 - (speedMultiplier - 1) * 60;
-    this.element.style.background = `hsl(${hue}, 100%, 80%)`;
-    this.element.style.boxShadow = `
-      0 0 ${12 + speedMultiplier * 6}px hsl(${hue}, 100%, 80%),
-      0 0 ${24 + speedMultiplier * 12}px hsl(${hue}, 100%, 60%),
-      0 0 ${36 + speedMultiplier * 18}px hsl(${hue}, 100%, 40%),
-      0 0 ${48 + speedMultiplier * 24}px hsl(${hue}, 100%, 20%)
-    `;
-  }
-
-  destroy() {
-    this.trails.forEach((trail) => trail.remove());
-    this.element.remove();
-  }
-}
+type AssetKind = "model" | "texture" | "other";
 
 export const BlackHoleLoader: React.FC<BlackHoleLoaderProps> = ({
   progress: realProgress,
+  assetsReady = true,
+  meta,
   onComplete,
 }) => {
   const [displayProgress, setDisplayProgress] = useState(0);
-  const startTimeRef = useRef<number>(Date.now());
   const completedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const particlesRef = useRef<Particle[]>([]);
-  const animationRef = useRef<number>();
-  const speedMultiplierRef = useRef(1);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const workerRef = useRef<Worker | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const progressRef = useRef(0);
+  const displayProgressFloatRef = useRef(0);
+  const realProgressRef = useRef(realProgress);
+  const assetsReadyRef = useRef(assetsReady);
+  const onCompleteRef = useRef(onComplete);
+  const lastFrameTimeRef = useRef<number>(performance.now());
+  const lastWorkerTickTimeRef = useRef<number>(performance.now());
+  const lastReportedIntRef = useRef(-1);
+  const inflightWorkerFrameRef = useRef(false);
+  const loopRef = useRef<(now: number) => void>(() => {});
+  const [loadingMeta, setLoadingMeta] = useState({
+    loaded: 0,
+    total: 0,
+    item: "",
+    estimatedTotalBytes: 0,
+    loadedBytes: 0,
+    modelsLoaded: 0,
+    modelsTotal: 0,
+    texturesLoaded: 0,
+    texturesTotal: 0,
+    etaSeconds: null as number | null,
+  });
+  const [errorState, setErrorState] = useState<{
+    url: string;
+    message: string;
+  } | null>(null);
+  const errorRef = useRef<{ url: string; message: string } | null>(null);
+  const [fps, setFps] = useState<number | null>(null);
 
-  // Progreso visual suave
-  useEffect(() => {
-    const updateProgress = () => {
-      const elapsed = Date.now() - startTimeRef.current;
-      const duration = 4000;
-      const progress = Math.min((elapsed / duration) * 100, 100);
-
-      setDisplayProgress(Math.floor(progress));
-
-      if (progress < 100) {
-        requestAnimationFrame(updateProgress);
-      }
-    };
-
-    updateProgress();
+  const isMobile = useMemo(() => {
+    return (
+      window.innerWidth <= 768 ||
+      "ontouchstart" in window ||
+      navigator.maxTouchPoints > 0
+    );
   }, []);
 
-  // Sistema de partículas dinámico - exacto del código HTML original
+  const prefersReducedMotion = useMemo(() => {
+    return (
+      window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false
+    );
+  }, []);
+
+  const particleCount = useMemo(() => {
+    const base = Math.max(20, BLACKHOLE_CONFIG?.particles?.count ?? 80);
+    if (prefersReducedMotion) return Math.min(base, 40);
+    if (isMobile) return Math.min(base, 70);
+    return Math.min(160, base * 2);
+  }, [isMobile, prefersReducedMotion]);
+
+  const tickIntervalMs = useMemo(() => {
+    if (prefersReducedMotion) return 40;
+    return isMobile ? 33 : 16;
+  }, [isMobile, prefersReducedMotion]);
+
   useEffect(() => {
-    if (!containerRef.current) return;
+    realProgressRef.current = realProgress;
+  }, [realProgress]);
 
-    const container = containerRef.current;
-    const maxParticles = 180; // Más partículas para mayor efecto
+  useEffect(() => {
+    assetsReadyRef.current = assetsReady;
+  }, [assetsReady]);
 
-    // Crear partículas iniciales
-    const initParticles = () => {
-      for (let i = 0; i < maxParticles; i++) {
-        setTimeout(() => {
-          if (containerRef.current) {
-            particlesRef.current.push(new Particle(containerRef.current, 600));
-          }
-        }, i * 15); // Spawn gradual
+  useEffect(() => {
+    if (!meta) return;
+    managerCountsRef.current = {
+      loaded: meta.loaded,
+      total: meta.total,
+      item: meta.item,
+    };
+  }, [meta]);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  useEffect(() => {
+    errorRef.current = errorState;
+  }, [errorState]);
+
+  const sizesAbortRef = useRef<AbortController | null>(null);
+  const itemsRef = useRef(
+    new Map<
+      string,
+      {
+        weight: number;
+        loaded: boolean;
+        failed: boolean;
+        sizeKnown: boolean;
+        kind: AssetKind;
+      }
+    >()
+  );
+  const managerCountsRef = useRef({ loaded: 0, total: 0, item: "" });
+  const startedAtRef = useRef<number>(performance.now());
+
+  const getKindFromUrl = useCallback((url: string): AssetKind => {
+    const normalized = (url || "").split("?")[0].split("#")[0].toLowerCase();
+    const ext = normalized.includes(".") ? normalized.split(".").pop() : "";
+    if (!ext) return "other";
+    if (ext === "glb" || ext === "gltf") return "model";
+    if (
+      ext === "jpg" ||
+      ext === "jpeg" ||
+      ext === "png" ||
+      ext === "webp" ||
+      ext === "gif" ||
+      ext === "bmp" ||
+      ext === "tga" ||
+      ext === "hdr" ||
+      ext === "exr" ||
+      ext === "ktx2"
+    )
+      return "texture";
+    return "other";
+  }, []);
+
+  const scheduleHead = useCallback((url: string) => {
+    const normalizedUrl = url || "";
+    if (
+      !normalizedUrl ||
+      normalizedUrl.startsWith("data:") ||
+      normalizedUrl.startsWith("blob:")
+    )
+      return;
+
+    let resolved: URL | null = null;
+    try {
+      resolved = new URL(normalizedUrl, window.location.href);
+    } catch {
+      return;
+    }
+    if (resolved.protocol !== "http:" && resolved.protocol !== "https:") return;
+    if (resolved.origin !== window.location.origin) return;
+
+    const entry = itemsRef.current.get(normalizedUrl);
+    if (!entry || entry.sizeKnown) return;
+    const controller = sizesAbortRef.current;
+    const signal = controller?.signal;
+
+    fetch(normalizedUrl, { method: "HEAD", signal })
+      .then((res) => {
+        const value = res.headers.get("content-length");
+        const size = value ? Number.parseInt(value, 10) : NaN;
+        if (!Number.isFinite(size) || size <= 0) return;
+        const current = itemsRef.current.get(normalizedUrl);
+        if (!current) return;
+        current.sizeKnown = true;
+        current.weight = size;
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    sizesAbortRef.current?.abort();
+    sizesAbortRef.current = new AbortController();
+    itemsRef.current.clear();
+    managerCountsRef.current = { loaded: 0, total: 0, item: "" };
+    startedAtRef.current = performance.now();
+    setErrorState(null);
+
+    const manager = THREE.DefaultLoadingManager;
+    const prev = {
+      onStart: manager.onStart,
+      onProgress: manager.onProgress,
+      onLoad: manager.onLoad,
+      onError: manager.onError,
+    };
+
+    const ensureItem = (url: string) => {
+      const normalizedUrl = url || "";
+      if (!itemsRef.current.has(normalizedUrl)) {
+        itemsRef.current.set(normalizedUrl, {
+          weight: 1,
+          loaded: false,
+          failed: false,
+          sizeKnown: false,
+          kind: getKindFromUrl(normalizedUrl),
+        });
+        scheduleHead(normalizedUrl);
       }
     };
 
-    // Loop de animación - exacto del original
-    const animate = () => {
-      // Actualizar velocidad basada en progreso
-      speedMultiplierRef.current = 1 + (displayProgress / 100) * 3; // Velocidad aumenta con progreso
+    const markLoaded = (url: string) => {
+      const normalizedUrl = url || "";
+      const item = itemsRef.current.get(normalizedUrl);
+      if (item) item.loaded = true;
+    };
 
-      // Agregar más partículas a medida que avanza
+    manager.onStart = (
+      url: string,
+      itemsLoaded: number,
+      itemsTotal: number
+    ) => {
+      ensureItem(url);
+      managerCountsRef.current = {
+        loaded: itemsLoaded,
+        total: itemsTotal,
+        item: url,
+      };
+      if (typeof prev.onStart === "function")
+        prev.onStart(url, itemsLoaded, itemsTotal);
+    };
+
+    manager.onProgress = (
+      url: string,
+      itemsLoaded: number,
+      itemsTotal: number
+    ) => {
+      ensureItem(url);
+      markLoaded(url);
+      managerCountsRef.current = {
+        loaded: itemsLoaded,
+        total: itemsTotal,
+        item: url,
+      };
+      if (typeof prev.onProgress === "function")
+        prev.onProgress(url, itemsLoaded, itemsTotal);
+    };
+
+    manager.onError = (url: string) => {
+      const normalizedUrl = url || "";
+      ensureItem(normalizedUrl);
+      const item = itemsRef.current.get(normalizedUrl);
+      if (item) item.failed = true;
+      setErrorState({ url: normalizedUrl, message: "Error cargando recurso" });
+      if (typeof prev.onError === "function") prev.onError(url);
+    };
+
+    manager.onLoad = () => {
+      if (typeof prev.onLoad === "function") prev.onLoad();
+    };
+
+    return () => {
+      sizesAbortRef.current?.abort();
+      sizesAbortRef.current = null;
+      manager.onStart = prev.onStart;
+      manager.onProgress = prev.onProgress;
+      manager.onLoad = prev.onLoad;
+      manager.onError = prev.onError;
+    };
+  }, [getKindFromUrl, scheduleHead]);
+
+  const computeWeightedProgress = useCallback((now: number) => {
+    const counts = managerCountsRef.current;
+    const entries = itemsRef.current;
+    let totalWeight = 0;
+    let loadedWeight = 0;
+    let modelsLoaded = 0;
+    let modelsTotal = 0;
+    let texturesLoaded = 0;
+    let texturesTotal = 0;
+
+    for (const [, v] of entries) {
+      totalWeight += v.weight;
+      if (v.loaded) loadedWeight += v.weight;
+      if (v.kind === "model") {
+        modelsTotal += 1;
+        if (v.loaded) modelsLoaded += 1;
+      } else if (v.kind === "texture") {
+        texturesTotal += 1;
+        if (v.loaded) texturesLoaded += 1;
+      }
+    }
+
+    const pct =
+      totalWeight > 0 ? Math.min(100, (loadedWeight / totalWeight) * 100) : 0;
+
+    const elapsedMs = Math.max(0, now - startedAtRef.current);
+    const etaSeconds =
+      pct > 0 && pct < 100
+        ? Math.max(0, Math.ceil((elapsedMs * (100 / pct) - elapsedMs) / 1000))
+        : null;
+
+    return {
+      pct,
+      totalWeight: Math.round(totalWeight),
+      loadedWeight: Math.round(loadedWeight),
+      loaded: counts.loaded,
+      total: counts.total,
+      item: counts.item,
+      modelsLoaded,
+      modelsTotal,
+      texturesLoaded,
+      texturesTotal,
+      etaSeconds,
+    };
+  }, []);
+
+  const resizeCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+    const rect = container.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const nextWidth = Math.max(1, Math.floor(rect.width * dpr));
+    const nextHeight = Math.max(1, Math.floor(rect.height * dpr));
+    if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
+      canvas.width = nextWidth;
+      canvas.height = nextHeight;
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+      workerRef.current?.postMessage({
+        type: "resize",
+        width: nextWidth,
+        height: nextHeight,
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    let worker: Worker | null = null;
+    try {
+      worker = new Worker(
+        new URL("./blackHoleParticles.worker.ts", import.meta.url),
+        { type: "module" }
+      );
+      workerRef.current = worker;
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : "Error inicializando worker";
+      setErrorState((prev) => prev ?? { url: "worker", message });
+      workerRef.current = null;
+      inflightWorkerFrameRef.current = false;
+      return () => {};
+    }
+
+    const handleMessage = (event: MessageEvent<WorkerFrameMessage>) => {
+      const data = event.data;
+      if (data?.type !== "frame") return;
+      inflightWorkerFrameRef.current = false;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = "rgba(0, 0, 0, 0.14)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalCompositeOperation = "lighter";
+
+      const frame = new Float32Array(data.frame);
+      const speed = 1 + (progressRef.current / 100) * 3;
+      const hue = 270 - (speed - 1) * 60;
+      ctx.fillStyle = `hsla(${hue}, 100%, 75%, 0.9)`;
+
+      for (let i = 0; i < frame.length; i += 4) {
+        const px = frame[i];
+        const py = frame[i + 1];
+        const ps = frame[i + 2];
+        const po = frame[i + 3];
+        ctx.globalAlpha = po;
+        ctx.fillRect(px, py, ps, ps);
+      }
+      ctx.globalAlpha = 1;
+    };
+
+    worker.addEventListener("message", handleMessage);
+
+    return () => {
+      worker.removeEventListener("message", handleMessage);
+      worker.terminate();
+      workerRef.current = null;
+      inflightWorkerFrameRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    resizeCanvas();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", resizeCanvas);
+      return () => window.removeEventListener("resize", resizeCanvas);
+    }
+    const observer = new ResizeObserver(() => resizeCanvas());
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [resizeCanvas]);
+
+  const initWorker = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const eventHorizonRadius = Math.max(
+      30,
+      Math.floor(Math.min(canvas.width, canvas.height) * 0.1)
+    );
+    workerRef.current?.postMessage({
+      type: "init",
+      width: canvas.width,
+      height: canvas.height,
+      particleCount,
+      eventHorizonRadius,
+    });
+  }, [particleCount]);
+
+  useEffect(() => {
+    initWorker();
+  }, [initWorker]);
+
+  const loop = useCallback(
+    (now: number) => {
+      const dt = now - lastFrameTimeRef.current;
+      lastFrameTimeRef.current = now;
+
+      const weighted = computeWeightedProgress(now);
+      const combinedProgress = Math.max(realProgressRef.current, weighted.pct);
+      const counts = managerCountsRef.current;
+      const managerReady = counts.total === 0 || counts.loaded >= counts.total;
+      const progressReady = combinedProgress >= 100;
+      const readyToComplete =
+        managerReady &&
+        progressReady &&
+        assetsReadyRef.current &&
+        !errorRef.current;
+      const target = readyToComplete ? 100 : Math.min(99, combinedProgress);
+
+      progressRef.current = Math.max(progressRef.current, target);
+      const next = progressRef.current;
+      const easing = isMobile ? 0.08 : 0.12;
+      const smoothed =
+        displayProgressFloatRef.current +
+        (next - displayProgressFloatRef.current) * easing;
+      const clamped = smoothed > next ? next : smoothed;
+      displayProgressFloatRef.current = clamped;
+      const intProgress = Math.floor(clamped);
+
+      if (intProgress !== lastReportedIntRef.current) {
+        lastReportedIntRef.current = intProgress;
+        setDisplayProgress(intProgress);
+        setLoadingMeta({
+          loaded: weighted.loaded,
+          total: weighted.total,
+          item: weighted.item,
+          estimatedTotalBytes: weighted.totalWeight,
+          loadedBytes: weighted.loadedWeight,
+          modelsLoaded: weighted.modelsLoaded,
+          modelsTotal: weighted.modelsTotal,
+          texturesLoaded: weighted.texturesLoaded,
+          texturesTotal: weighted.texturesTotal,
+          etaSeconds: weighted.etaSeconds,
+        });
+      }
+
+      if (import.meta.env.DEV) {
+        const fpsNow = dt > 0 ? Math.round(1000 / dt) : null;
+        if (fpsNow && fpsNow > 0)
+          setFps((prev) => (prev === fpsNow ? prev : fpsNow));
+      }
+
       if (
-        displayProgress % 20 === 0 &&
-        particlesRef.current.length < maxParticles * 1.5
+        readyToComplete &&
+        intProgress >= 100 &&
+        onCompleteRef.current &&
+        !completedRef.current
       ) {
-        for (let i = 0; i < 15; i++) {
-          if (containerRef.current) {
-            particlesRef.current.push(new Particle(containerRef.current, 600));
-          }
+        completedRef.current = true;
+        const cb = onCompleteRef.current;
+        setTimeout(() => cb?.(), 250);
+      }
+
+      if (
+        !inflightWorkerFrameRef.current &&
+        now - lastWorkerTickTimeRef.current >= tickIntervalMs
+      ) {
+        const worker = workerRef.current;
+        if (worker) {
+          inflightWorkerFrameRef.current = true;
+          lastWorkerTickTimeRef.current = now;
+          const speedMultiplier = 1 + (progressRef.current / 100) * 3;
+          worker.postMessage({ type: "tick", dt, speedMultiplier });
         }
       }
 
-      // Actualizar todas las partículas
-      particlesRef.current.forEach((particle) => {
-        particle.update(speedMultiplierRef.current);
-      });
+      rafRef.current = requestAnimationFrame(loop);
+    },
+    [computeWeightedProgress, isMobile, tickIntervalMs]
+  );
 
-      animationRef.current = requestAnimationFrame(animate);
-    };
-
-    initParticles();
-    animate();
-
-    // Cleanup
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-      particlesRef.current.forEach((particle) => particle.destroy());
-      particlesRef.current = [];
-    };
-  }, [displayProgress]);
-
-  // Completar cuando ambos progresos estén listos
   useEffect(() => {
-    if (
-      realProgress >= 100 &&
-      displayProgress >= 100 &&
-      onComplete &&
-      !completedRef.current
-    ) {
-      completedRef.current = true;
-      setTimeout(onComplete, 500);
-    }
-  }, [realProgress, displayProgress, onComplete]);
+    loopRef.current = loop;
+  }, [loop]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      } else if (!rafRef.current) {
+        const now = performance.now();
+        lastFrameTimeRef.current = now;
+        lastWorkerTickTimeRef.current = now;
+        rafRef.current = requestAnimationFrame((t) => loopRef.current(t));
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
+  useEffect(() => {
+    rafRef.current = requestAnimationFrame(loop);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [loop]);
 
   return (
     <LoaderContainer>
       <BlackHoleContainer ref={containerRef}>
+        <ParticlesCanvas ref={canvasRef} />
         <GravitationalLensing />
         <AccretionDisk />
         <EventHorizon />
@@ -507,6 +839,35 @@ export const BlackHoleLoader: React.FC<BlackHoleLoaderProps> = ({
         </LoadingPercentage>
 
         <LoadingText>Cargando</LoadingText>
+        <LoadingMeta>
+          {loadingMeta.total > 0
+            ? `${loadingMeta.loaded}/${loadingMeta.total} · ${
+                loadingMeta.item ? loadingMeta.item.split("/").pop() : ""
+              }${
+                loadingMeta.estimatedTotalBytes > 0
+                  ? ` · ${Math.round(
+                      loadingMeta.loadedBytes / 1024
+                    )}KB/${Math.round(
+                      loadingMeta.estimatedTotalBytes / 1024
+                    )}KB`
+                  : ""
+              }${
+                loadingMeta.modelsTotal + loadingMeta.texturesTotal > 0
+                  ? ` · Modelos ${loadingMeta.modelsLoaded}/${loadingMeta.modelsTotal} · Texturas ${loadingMeta.texturesLoaded}/${loadingMeta.texturesTotal}`
+                  : ""
+              }${
+                loadingMeta.etaSeconds !== null
+                  ? ` · ~${loadingMeta.etaSeconds}s`
+                  : ""
+              }`
+            : "Inicializando..."}
+        </LoadingMeta>
+        {errorState && (
+          <ErrorText>
+            {errorState.message}: {errorState.url.split("/").pop()}
+          </ErrorText>
+        )}
+        {import.meta.env.DEV && fps !== null && <FpsText>{fps} FPS</FpsText>}
       </BlackHoleContainer>
     </LoaderContainer>
   );

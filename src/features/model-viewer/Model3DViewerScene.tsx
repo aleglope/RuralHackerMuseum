@@ -33,8 +33,6 @@ const {
   floorY,
   cameraHeight: CAMERA_HEIGHT_ABOVE_FLOOR,
   playerSpeed: PLAYER_SPEED,
-  playerRadius: PLAYER_RADIUS,
-  roomBounds: ROOM_BOUNDS,
 } = MUSEUM_SCENE_CONFIG;
 
 interface Model3DViewerSceneProps {
@@ -59,18 +57,18 @@ const Model3DViewerScene: React.FC<Model3DViewerSceneProps> = ({
 }) => {
   // Loading state management
   const { state: loadingState, handlers: loadingHandlers } = useModelLoading();
-  const { isLoading, progress, sceneReady } = loadingState;
-  const { handleProgressUpdate, handleAssetsLoaded } = loadingHandlers;
+  const { isLoading, progress, assetsReady, loaded, total, item, sceneReady } =
+    loadingState;
+  const { handleProgressUpdate, handleAssetsLoaded, handleMetaUpdate } =
+    loadingHandlers;
 
   // Viewer state management
   const {
     state: viewerState,
-    refs: viewerRefs,
     handlers: viewerHandlers,
     setters: viewerSetters,
   } = useViewerState();
   const { isPointerLockActive, isMobile } = viewerState;
-  const { touchControlsRef } = viewerRefs;
   const { handleCanvasClick, handleTouchMove, handleBack } = viewerHandlers;
   const { setTouchControlsRef } = viewerSetters;
 
@@ -108,6 +106,8 @@ const Model3DViewerScene: React.FC<Model3DViewerSceneProps> = ({
       {isLoading && (
         <BlackHoleLoader
           progress={progress}
+          assetsReady={assetsReady}
+          meta={{ loaded, total, item }}
           onComplete={() => {}} // Handled by useModelLoading
         />
       )}
@@ -186,6 +186,7 @@ const Model3DViewerScene: React.FC<Model3DViewerSceneProps> = ({
         <ProgressTracker
           onProgressUpdate={handleProgressUpdate}
           onAssetsLoaded={handleAssetsLoaded}
+          onMetaUpdate={handleMetaUpdate}
         />
 
         {/* Environment and Optimizations */}
@@ -201,7 +202,7 @@ const Model3DViewerScene: React.FC<Model3DViewerSceneProps> = ({
         <GalleryLights />
 
         {/* 🏗️ ESTRUCTURA DE GALERÍA COMPLETA RESTAURADA */}
-        <GalleryWalls floorY={floorY} />
+        <GalleryWalls />
         <Floor floorSize={20} />
         <Ceiling ceilingSize={20} />
 
@@ -215,7 +216,6 @@ const Model3DViewerScene: React.FC<Model3DViewerSceneProps> = ({
           floorY={floorY}
           freeCameraMode={false}
           cameraSpeed={PLAYER_SPEED}
-          sceneReady={sceneReady}
           onTouchControlsRef={setTouchControlsRef}
         />
 

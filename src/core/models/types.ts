@@ -18,12 +18,12 @@ export interface BaseModelConfig {
 
 export interface ModelTransformation {
   center?: boolean; // Si debe centrar el modelo
-  customTransforms?: (model: any) => void; // Transformaciones customizadas
+  customTransforms?: (model: unknown) => void; // Transformaciones customizadas
 }
 
 export interface ModelBehavior {
   type: string;
-  config?: any;
+  config?: unknown;
 }
 
 // ===== CONFIGURACIONES ESPECÍFICAS POR MODELO =====
@@ -162,7 +162,7 @@ export interface BaseModel3DProps extends GroupProps {
 export interface ProximityBehaviorState {
   hasTriggered: boolean;
   isNearWindow: boolean;
-  activeGLBAction: any;
+  activeGLBAction: unknown;
   sequenceTriggeredByProximity: boolean;
 }
 
@@ -210,9 +210,9 @@ export interface ModelValidationResult {
 // ===== BEHAVIOR SYSTEM TYPES =====
 export interface BehaviorHandler {
   type: string;
-  initialize?: (model: any, config: ModelConfig) => void;
-  update?: (model: any, config: ModelConfig, delta: number) => void;
-  cleanup?: (model: any, config: ModelConfig) => void;
+  initialize?: (model: unknown, config: ModelConfig) => void;
+  update?: (model: unknown, config: ModelConfig, delta: number) => void;
+  cleanup?: (model: unknown, config: ModelConfig) => void;
 }
 
 export type BehaviorRegistry = Map<string, BehaviorHandler>;
@@ -223,7 +223,7 @@ export type Vector3Like = Vector3Object | Vector3Tuple | number;
 export interface TransformUtils {
   toVector3Object: (value: Vector3Like) => Vector3Object;
   toVector3Tuple: (value: Vector3Like) => Vector3Tuple;
-  calculateBoundingBox: (model: any) => {
+  calculateBoundingBox: (model: unknown) => {
     center: Vector3Object;
     size: Vector3Object;
   };

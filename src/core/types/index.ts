@@ -103,7 +103,7 @@ export interface PepeAnimationState {
 export interface PepeProximityState {
   hasTriggered: boolean;
   isNearWindow: boolean;
-  activeGLBAction: any;
+  activeGLBAction: unknown;
   sequenceTriggeredByProximity: boolean;
 }
 
@@ -205,8 +205,8 @@ export interface ValidationResult {
 export interface ModelRegistryEntry {
   id: string;
   path: string;
-  config?: any;
-  transformations?: any;
+  config?: unknown;
+  transformations?: unknown;
   behaviors?: string[];
 }
 

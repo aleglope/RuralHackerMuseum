@@ -8,7 +8,7 @@ import * as THREE from "three";
 import { WindowModelConfig } from "../types";
 
 export const WindowBehaviors = {
-  useWindowBehavior: (config: WindowModelConfig, gltf: any) => {
+  useWindowBehavior: (config: WindowModelConfig, gltf: { scene: THREE.Group }) => {
     const modifiedSceneRef = useRef<THREE.Group | null>(null);
 
     // Effect to modify model materials (EXACTO DEL ORIGINAL)
@@ -38,7 +38,7 @@ export const WindowBehaviors = {
               // Create translucent material for glass (EXACTO DEL ORIGINAL)
               if (Array.isArray(child.material)) {
                 // If it's an array of materials
-                child.material = child.material.map((mat) => {
+                child.material = child.material.map(() => {
                   const glassMaterial = new THREE.MeshPhysicalMaterial({
                     color: config.glassConfig.color,
                     transparent: true,
@@ -103,6 +103,7 @@ export const WindowBehaviors = {
       config.glassConfig.color,
       config.glassConfig.reflectivity,
       config.glassConfig.roughness,
+      config.glassConfig.materialProps,
     ]);
 
     return {

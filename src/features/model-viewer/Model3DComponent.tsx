@@ -12,6 +12,7 @@ interface Model3DProps extends GroupProps {
  * Preserva TODAS las transformaciones complejas exactas
  */
 export default function Model3DComponent({ url, ...props }: Model3DProps) {
+  void url;
   // El url se ignora ahora porque usamos el registry centralizado
   // pero lo mantenemos para compatibilidad de la interfaz
   return <BaseModel3D modelId="ANCEU" {...props} />;

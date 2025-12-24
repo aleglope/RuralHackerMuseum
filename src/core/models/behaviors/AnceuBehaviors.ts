@@ -10,8 +10,7 @@ import { AnceuModelConfig } from "../types";
 export const AnceuBehaviors = {
   useAnceuBehavior: (
     config: AnceuModelConfig,
-    gltf: any,
-    groupRef: React.RefObject<THREE.Group>
+    gltf: { scene?: THREE.Group } | null
   ) => {
     const transformedSceneRef = useRef<THREE.Group | null>(null);
 

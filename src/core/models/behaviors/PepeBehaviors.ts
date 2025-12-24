@@ -10,8 +10,8 @@ import { PepeModelConfig } from "../types";
 export const PepeBehaviors = {
   usePepeBehavior: (
     config: PepeModelConfig,
-    gltf: any,
-    actions: any,
+    gltf: { scene?: THREE.Group; animations?: THREE.AnimationClip[] } | null,
+    actions: Record<string, THREE.AnimationAction | null | undefined>,
     groupRef: React.RefObject<THREE.Group>
   ) => {
     const { camera } = useThree();
@@ -20,7 +20,7 @@ export const PepeBehaviors = {
     const proximityRef = useRef({
       hasTriggered: false,
       isNearWindow: false,
-      activeGLBAction: null as any,
+      activeGLBAction: null as THREE.AnimationAction | null,
       sequenceTriggeredByProximity: false,
     });
 
@@ -42,31 +42,33 @@ export const PepeBehaviors = {
     });
 
     // Get available animation names
-    const animationNames = gltf.animations?.map((anim: any) => anim.name) || [];
+    const animationNames = gltf?.animations?.map((anim) => anim.name) || [];
 
     // Setup model materials
     useEffect(() => {
-      if (gltf.scene) {
-        gltf.scene.traverse((child: any) => {
-          if (child instanceof THREE.Mesh && child.material) {
+      if (gltf?.scene) {
+        gltf.scene.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const mesh = child as THREE.Mesh;
+            if (!mesh.material) return;
             // Enhance materials
-            if (Array.isArray(child.material)) {
-              child.material.forEach((mat) => {
+            if (Array.isArray(mesh.material)) {
+              mesh.material.forEach((mat) => {
                 if (mat instanceof THREE.MeshStandardMaterial) {
                   mat.envMapIntensity = 1.2;
                   mat.needsUpdate = true;
                 }
               });
             } else {
-              if (child.material instanceof THREE.MeshStandardMaterial) {
-                child.material.envMapIntensity = 1.2;
-                child.material.needsUpdate = true;
+              if (mesh.material instanceof THREE.MeshStandardMaterial) {
+                mesh.material.envMapIntensity = 1.2;
+                mesh.material.needsUpdate = true;
               }
             }
 
             // Enable shadows
-            child.castShadow = true;
-            child.receiveShadow = true;
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
           }
         });
       }

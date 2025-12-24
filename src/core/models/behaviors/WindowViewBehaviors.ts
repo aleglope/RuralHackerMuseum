@@ -11,7 +11,7 @@ import { WindowViewModelConfig } from "../types";
 export const WindowViewBehaviors = {
   useWindowViewBehavior: (
     config: WindowViewModelConfig,
-    gltf: any,
+    gltf: { scene?: THREE.Group } | null,
     groupRef: React.RefObject<THREE.Group>
   ) => {
     const modelCenterRef = useRef<THREE.Vector3>(new THREE.Vector3());

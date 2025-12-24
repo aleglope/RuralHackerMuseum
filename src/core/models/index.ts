@@ -4,7 +4,7 @@
  */
 
 // ===== IMPORTACIONES PARA DEFAULT EXPORT =====
-import BaseModel3DComponent, { useModel } from "./BaseModel3D";
+import BaseModel3DComponent from "./BaseModel3D";
 import modelRegistryInstance, {
   validateModelRegistry,
   logModelRegistry,
@@ -12,7 +12,7 @@ import modelRegistryInstance, {
 import type { BaseModel3DProps } from "./types";
 
 // ===== COMPONENTE PRINCIPAL =====
-export { default as BaseModel3D, useModel } from "./BaseModel3D";
+export { default as BaseModel3D } from "./BaseModel3D";
 
 // Preloader utilities
 export { preloadModel, preloadModels } from "./utils/preloader";

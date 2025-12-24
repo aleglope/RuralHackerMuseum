@@ -1,4 +1,3 @@
-import { useHelper } from "@react-three/drei";
 import { useRef, useEffect } from "react";
 import * as THREE from "three";
 

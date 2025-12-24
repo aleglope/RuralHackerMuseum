@@ -193,64 +193,7 @@ const ExitButton = styled.button`
 `;
 
 // Interfaces para las clases del juego
-interface GameObject {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  update(): void;
-  draw(ctx: CanvasRenderingContext2D): void;
-}
-
-interface Player {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  jumping: boolean;
-  jumpVelocity: number;
-  grounded: boolean;
-  crouching: boolean;
-  running: boolean;
-  movingLeft: boolean;
-  movingRight: boolean;
-  doubleJumpAvailable: boolean;
-  hasDoubleJump: boolean;
-  hasShield: boolean;
-  hasSpeedBoost: boolean;
-  shieldTime: number;
-  speedBoostTime: number;
-  doubleJumpTime: number;
-  invulnerable: boolean;
-  invulnerableTime: number;
-  color: string;
-  runAnimation: number;
-}
-
-interface Particle {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  color: string;
-  life: number;
-  size: number;
-  update(): void;
-  draw(ctx: CanvasRenderingContext2D): void;
-}
-
-interface Cloud {
-  x: number;
-  y: number;
-  width: number;
-  speed: number;
-}
-
-interface BackgroundElement {
-  x: number;
-  type: string;
-  speed: number;
-}
+type Rect = { x: number; y: number; width: number; height: number };
 
 // Constantes del juego (movidas fuera del componente)
 const CANVAS_WIDTH = 900;
@@ -329,13 +272,13 @@ const SuperRunner2D: React.FC<SuperRunner2DProps> = ({
       color: "#3498db",
       runAnimation: 0,
     },
-    obstacles: [] as any[],
-    insects: [] as any[],
-    bullets: [] as any[],
-    powerUpItems: [] as any[],
-    particles: [] as any[],
-    clouds: [] as any[],
-    backgroundElements: [] as any[],
+    obstacles: [] as unknown[],
+    insects: [] as unknown[],
+    bullets: [] as unknown[],
+    powerUpItems: [] as unknown[],
+    particles: [] as unknown[],
+    clouds: [] as unknown[],
+    backgroundElements: [] as unknown[],
   });
 
   const keys = useRef<{ [key: string]: boolean }>({});
@@ -651,7 +594,7 @@ const SuperRunner2D: React.FC<SuperRunner2DProps> = ({
     createParticles(player.x + player.width, bulletY, "#FFD700", 3);
   };
 
-  const checkCollision = (rect1: any, rect2: any): boolean => {
+  const checkCollision = (rect1: Rect, rect2: Rect): boolean => {
     return (
       rect1.x < rect2.x + rect2.width &&
       rect1.x + rect1.width > rect2.x &&

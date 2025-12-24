@@ -7,7 +7,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 export const useViewerState = () => {
   const [isPointerLockActive, setIsPointerLockActive] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const touchControlsRef = useRef<any>();
+  const touchControlsRef = useRef<
+    ((direction: string, active: boolean) => void) | null
+  >(null);
 
   // Mobile detection
   useEffect(() => {
@@ -47,9 +49,13 @@ export const useViewerState = () => {
         const canvasEl = document.querySelector("canvas");
         if (canvasEl && document.pointerLockElement === null) {
           try {
-            (canvasEl as any).requestPointerLock?.();
+            (
+              canvasEl as HTMLCanvasElement & {
+                requestPointerLock?: () => void;
+              }
+            ).requestPointerLock?.();
           } catch (error) {
-            // Pointer lock failed
+            void error;
           }
         }
       }
@@ -72,7 +78,7 @@ export const useViewerState = () => {
           document.exitPointerLock();
         }
       } catch (error) {
-        // Exit pointer lock failed
+        void error;
       }
       onBack();
     },
@@ -93,7 +99,9 @@ export const useViewerState = () => {
       handleBack,
     },
     setters: {
-      setTouchControlsRef: (ref: any) => {
+      setTouchControlsRef: (
+        ref: ((direction: string, active: boolean) => void) | null
+      ) => {
         touchControlsRef.current = ref;
       },
     },
